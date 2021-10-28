@@ -4,6 +4,7 @@ import base64
 import json
 import logging
 
+from pycti import OpenCTIConnectorHelper
 import requests
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
@@ -14,8 +15,11 @@ logger = logging.getLogger(__name__)
 class VirusTotalClient:
     """VirusTotal client."""
 
-    def __init__(self, base_url, token):
+    def __init__(
+        self, helper: OpenCTIConnectorHelper, base_url: str, token: str
+    ) -> None:
         """Initialize Virustotal client."""
+        self.helper = helper
         # Drop the ending slash if present.
         self.url = base_url[:-1] if base_url[-1] == "/" else base_url
         logger.info(f"[VirusTotal] URL: {self.url}")
@@ -59,10 +63,13 @@ class VirusTotalClient:
             response.raise_for_status()
         except requests.exceptions.HTTPError as errh:
             logger.error(f"[VirusTotal] Http error: {errh}")
+            self.helper.metric_inc("client_error_count")
         except requests.exceptions.ConnectionError as errc:
             logger.error(f"[VirusTotal] Error connecting: {errc}")
+            self.helper.metric_inc("client_error_count")
         except requests.exceptions.Timeout as errt:
             logger.error(f"[VirusTotal] Timeout error: {errt}")
+            self.helper.metric_inc("client_error_count")
         except requests.exceptions.RequestException as err:
             logger.error(f"[VirusTotal] Something else happened: {err}")
         except Exception as err:
@@ -70,6 +77,7 @@ class VirusTotalClient:
         try:
             return response.json()
         except json.JSONDecodeError as err:
+            self.helper.metric_inc("client_error_count")
             logger.error(
                 f"[VirusTotal] Error decoding the json: {err} - {response.text}"
             )
