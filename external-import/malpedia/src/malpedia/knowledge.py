@@ -91,6 +91,7 @@ class KnowledgeImporter:
                 self.helper.log_error(
                     f"error parsing family: {family_id} {e} {families_json[family_id]}"
                 )
+                self.helper.metric_inc("error_count")
                 continue
 
             self.helper.log_info("Processing malware family: " + fam.malpedia_name)
@@ -136,6 +137,7 @@ class KnowledgeImporter:
                 act = Actor.parse_obj(actor_json)
             except ValidationError as e:
                 self.helper.log_error(f"error marshaling actor data for {actor}: {e}")
+                self.helper.metric_inc("error_count")
                 continue
 
             self.helper.log_info("Processing actor: " + act.value)
@@ -173,6 +175,7 @@ class KnowledgeImporter:
                     createdBy=self.organization["id"],
                     update=self.update_data,
                 )
+                self.helper.metric_inc("record_send")
 
                 for act_ref_url in act.meta.refs:
                     reference = self.helper.api.external_reference.create(
@@ -183,6 +186,7 @@ class KnowledgeImporter:
                     self.helper.api.stix_domain_object.add_external_reference(
                         id=intrusion_set["id"], external_reference_id=reference["id"]
                     )
+                    self.helper.metric_inc("record_send")
             else:
                 # If we don't create the intrusion set we attach every knowledge
                 # we have to the guessed existing one.
@@ -194,6 +198,7 @@ class KnowledgeImporter:
                     guessed_id = list(guessed_intrusion_set.values())[0]
                 except Exception as err:
                     self.helper.log_error(f"error guessing intrusion-set id: {err}")
+                    self.helper.metric_inc("error_count")
                     continue
 
                 if guessed_id is None or guessed_id == "":
@@ -226,6 +231,7 @@ class KnowledgeImporter:
                 sam = Sample.parse_obj(sample)
             except ValidationError as e:
                 self.helper.log_error(f"error marshaling sample data for {sample}: {e}")
+                self.helper.metric_inc("error_count")
                 continue
 
             self.helper.log_info("Processing sample: " + sam.sha256)
@@ -251,11 +257,13 @@ class KnowledgeImporter:
                         objectMarking=[self.default_marking["id"]],
                         update=self.update_data,
                     )
+                    self.helper.metric_inc("record_send")
                 except Exception as e:
                     print(obs)
                     self.helper.log_error(
                         f"error storing observable ({sam.sha256}): {e}"
                     )
+                    self.helper.metric_inc("error_count")
                     continue
             indicator = None
             if self.create_indicators:
@@ -272,6 +280,7 @@ class KnowledgeImporter:
                     )
                 except Exception as e:
                     self.helper.log_error(f"error storing indicator: {e}")
+                    self.helper.metric_inc("error_count")
                     continue
 
             if indicator is not None:
@@ -288,6 +297,7 @@ class KnowledgeImporter:
                     )
                 except Exception as e:
                     self.helper.log_error(f"error storing indicator relation: {e}")
+                    self.helper.metric_inc("error_count")
                     continue
             if obs is not None:
                 try:
@@ -303,6 +313,7 @@ class KnowledgeImporter:
                     )
                 except Exception as e:
                     self.helper.log_error(f"error storing indicator relation: {e}")
+                    self.helper.metric_inc("error_count")
                     continue
 
             if indicator is not None and obs is not None:
@@ -316,6 +327,7 @@ class KnowledgeImporter:
                     )
                 except Exception as e:
                     self.helper.log_error(f"error storing indicator relation: {e}")
+                    self.helper.metric_inc("error_count")
                     continue
 
     def _add_yara_rules_for_malware_id(
@@ -349,6 +361,7 @@ class KnowledgeImporter:
                     )
                 except Exception as e:
                     self.helper.log_error(f"error creating yara indicator: {e}")
+                    self.helper.metric_inc("error_count")
                     continue
 
                 self.helper.api.stix_core_relationship.create(
@@ -387,6 +400,7 @@ class KnowledgeImporter:
                 )
             except Exception as e:
                 self.helper.log_error(f"error creating malware entity: {e}")
+                self.helper.metric_inc("error_count")
                 return ""
 
             self._add_refs_for_id(fam.urls, malware["id"])
@@ -405,6 +419,7 @@ class KnowledgeImporter:
                 san_url = urlparse(ref)
             except Exception:
                 self.helper.log_error(f"error parsing ref url: {ref}")
+                self.helper.metric_inc("error_count")
                 continue
 
             reference = self.helper.api.external_reference.create(
@@ -421,6 +436,7 @@ class KnowledgeImporter:
             return dp.isoparse(ts).strftime("%Y-%m-%dT%H:%M:%S+00:00")
         except ValueError:
             self._error("error parsing ts: ", ts)
+            self.helper.metric_inc("error_count")
             return datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S+00:00")
 
     def _info(self, msg: str, *args: Any) -> None:
