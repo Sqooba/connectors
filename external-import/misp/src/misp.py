@@ -1,10 +1,15 @@
-import re
-import os
-import yaml
-import time
-import json
-
 from datetime import datetime
+import json
+import os
+import re
+import time
+
+from pycti import (
+    OpenCTIConnectorHelper,
+    get_config_variable,
+    SimpleObservable,
+    OpenCTIStix2Utils,
+)
 from pymisp import ExpandedPyMISP
 from stix2 import (
     Bundle,
@@ -28,13 +33,7 @@ from stix2 import (
     ObservationExpression,
     Note,
 )
-
-from pycti import (
-    OpenCTIConnectorHelper,
-    get_config_variable,
-    SimpleObservable,
-    OpenCTIStix2Utils,
-)
+import yaml
 
 PATTERNTYPES = ["yara", "sigma", "pcre", "snort", "suricata"]
 OPENCTISTIX2 = {
@@ -180,6 +179,8 @@ class Misp:
 
     def run(self):
         while True:
+            self.helper.metric_inc("run_count")
+            self.helper.metric_state("running")
             timestamp = int(time.time())
             # Get the last_run datetime
             now = datetime.utcfromtimestamp(timestamp)
@@ -277,10 +278,12 @@ class Misp:
                     events = self.misp.search("events", **kwargs)
                 except Exception as e:
                     self.helper.log_error(str(e))
+                    self.helper.metric_inc("client_error_count")
                     try:
                         events = self.misp.search("events", **kwargs)
                     except Exception as e:
                         self.helper.log_error(str(e))
+                        self.helper.metric_inc("client_error_count")
 
                 self.helper.log_info("MISP returned " + str(len(events)) + " events.")
                 number_events = number_events + len(events)
@@ -312,6 +315,7 @@ class Misp:
                 }
             )
             self.helper.api.work.to_processed(work_id, message)
+            self.helper.metric_state("idle")
             time.sleep(self.get_interval())
 
     def process_events(self, work_id, events) -> int:
@@ -708,6 +712,7 @@ class Misp:
             self.helper.send_stix2_bundle(
                 bundle, work_id=work_id, update=self.update_existing_data
             )
+            self.helper.metric_inc("record_send", len(bundle_objects))
 
         return latest_event_timestamp
 
@@ -864,6 +869,7 @@ class Misp:
                     )
                 except Exception as e:
                     self.helper.log_error(str(e))
+                    self.helper.metric_inc("error_count")
             observable = None
             if self.misp_create_observables and observable_type is not None:
                 try:
@@ -882,6 +888,7 @@ class Misp:
                     )
                 except Exception as e:
                     self.helper.log_error(str(e))
+                    self.helper.metric_inc("error_count")
             sightings = []
             identities = []
             if "Sighting" in attribute:
