@@ -379,6 +379,8 @@ class KasperskyConnector:
                     current_state, self._STATE_LATEST_RUN_TIMESTAMP
                 )
                 if self._is_scheduled(last_run, timestamp):
+                    self.helper.metric_inc("run_count")
+                    self.helper.metric_state("running")
                     work_id = self._initiate_work(timestamp)
 
                     new_state = current_state.copy()
@@ -414,13 +416,16 @@ class KasperskyConnector:
                     self._info(
                         "Connector will not run, next run in: {0} seconds", next_run
                     )
-
+                self.helper.metric_state("idle")
                 self._sleep(delay_sec=run_interval)
             except (KeyboardInterrupt, SystemExit):
                 self._info("Kaspersky connector stop")
-                exit(0)
+                self.helper.metric_state("stopped")
+                sys.exit(0)
             except Exception as e:  # noqa: B902
                 self._error("Kaspersky connector internal error: {0}", str(e))
+                self.helper.metric_state("idle")
+                self.helper.metric_inc("error_count")
                 self._sleep()
 
     def _initiate_work(self, timestamp: int) -> str:
