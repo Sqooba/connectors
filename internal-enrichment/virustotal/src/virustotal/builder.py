@@ -430,6 +430,7 @@ class VirusTotalBuilder:
         str
             String with the number of bundle sent.
         """
+        self.helper.metric_state("idle")
         if self.bundle is not None:
             self.helper.log_debug(f"[VirusTotal] sending bundle: {self.bundle}")
             serialized_bundle = stix2.Bundle(
