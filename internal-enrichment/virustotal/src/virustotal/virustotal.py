@@ -91,12 +91,19 @@ class VirusTotalConnector:
         )
 
     def _process_file(self, observable):
+        self.helper.metric_inc("run_count")
+        self.helper.metric_state("running")
+
         json_data = self.client.get_file_info(observable["observable_value"])
         if json_data is None:
-            raise ValueError("An error has occurred")
+            self.helper.metric_inc("client_error_count")
+            return "File not found on VirusTotal."
         if "error" in json_data:
+            self.helper.metric_inc("client_error_count")
             if json_data["error"]["message"] == "Quota exceeded":
-                self.helper.log_info("Quota reached, waiting 1 hour.")
+                self.helper.log_info(
+                    f"Quota reached, waiting {self._CONNECTOR_RUN_INTERVAL_SEC} minutes."
+                )
                 sleep(self._CONNECTOR_RUN_INTERVAL_SEC)
             elif "not found" in json_data["error"]["message"]:
                 self.helper.log_info("File not found on VirusTotal.")
@@ -158,6 +165,8 @@ class VirusTotalConnector:
                 id=final_observable["id"],
                 external_reference_id=external_reference["id"],
             )
+            # One for the external reference plus the number of tags.
+            self.helper.metric_inc("record_send", 1 + len(attributes["tags"]))
 
             if "crowdsourced_yara_results" in attributes:
                 self.helper.log_info("[VirusTotal] adding yara results to file.")
@@ -184,8 +193,13 @@ class VirusTotalConnector:
                         toId=yara["id"],
                         relationship_type="related-to",
                     )
+                self.helper.metric_inc("record_send", len(yaras))
 
+            self.helper.metric_state("idle")
             return "File found on VirusTotal, knowledge attached."
+
+        self.helper.metric_state("idle")
+        return "File not found on VirusTotal."
 
     def _process_message(self, data):
         entity_id = data["entity_id"]
@@ -196,6 +210,8 @@ class VirusTotalConnector:
             if marking_definition["definition_type"] == "TLP":
                 tlp = marking_definition["definition"]
         if not OpenCTIConnectorHelper.check_max_tlp(tlp, self.max_tlp):
+            self.helper.metric_inc("error_count")
+            self.helper.metric_state("stopped")
             raise ValueError(
                 "Do not send any data, TLP of the observable is greater than MAX TLP"
             )
@@ -203,4 +219,6 @@ class VirusTotalConnector:
 
     def start(self):
         """Start the main loop."""
+        # Set default state as `idle`.
+        self.helper.metric_state("idle")
         self.helper.listen(self._process_message)
