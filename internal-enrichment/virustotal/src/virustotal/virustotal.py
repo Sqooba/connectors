@@ -43,7 +43,7 @@ class VirusTotalConnector:
             type="Organization", name="VirusTotal", description="VirusTotal"
         )["standard_id"]
 
-        self.client = VirusTotalClient(self._API_URL, token)
+        self.client = VirusTotalClient(self.helper, self._API_URL, token)
 
         # Cache to store YARA rulesets.
         self.yara_cache = {}
@@ -184,9 +184,13 @@ class VirusTotalConnector:
         )
 
     def _process_file(self, observable):
+        self.helper.metric_inc("run_count")
+        self.helper.metric_state("running")
+
         json_data = self.client.get_file_info(observable["observable_value"])
         assert json_data
         if "error" in json_data:
+            self.helper.metric_inc("error_count")
             raise ValueError(json_data["error"]["message"])
         elif "data" not in json_data or "attributes" not in json_data["data"]:
             raise ValueError("An error has occurred.")
@@ -338,6 +342,7 @@ class VirusTotalConnector:
 
         # Serialize/send all bundled objects
         if bundle_objects:
+            self.helper.metric_inc("record_send", len(bundle_objects))
             bundle = stix2.Bundle(objects=bundle_objects, allow_custom=True).serialize()
             bundles_sent = self.helper.send_stix2_bundle(bundle)
             return f"Sent {len(bundles_sent)} stix bundle(s) for worker import"
@@ -481,6 +486,7 @@ class VirusTotalConnector:
 
         # Serialize and send all bundles
         if bundle_objects:
+            self.helper.metric_inc("record_send", len(bundle_objects))
             bundle = stix2.Bundle(objects=bundle_objects, allow_custom=True).serialize()
             bundles_sent = self.helper.send_stix2_bundle(bundle)
             return f"Sent {len(bundles_sent)} stix bundle(s) for worker import"
@@ -610,6 +616,7 @@ class VirusTotalConnector:
 
         # Serialize and send all bundles
         if bundle_objects:
+            self.helper.metric_inc("record_send", len(bundle_objects))
             bundle = stix2.Bundle(objects=bundle_objects, allow_custom=True).serialize()
             bundles_sent = self.helper.send_stix2_bundle(bundle)
             return f"Sent {len(bundles_sent)} stix bundle(s) for worker import"
@@ -718,6 +725,7 @@ class VirusTotalConnector:
 
         # Serialize and send all bundles
         if bundle_objects:
+            self.helper.metric_inc("record_send", len(bundle_objects))
             bundle = stix2.Bundle(objects=bundle_objects, allow_custom=True).serialize()
             bundles_sent = self.helper.send_stix2_bundle(bundle)
             return f"Sent {len(bundles_sent)} stix bundle(s) for worker import"
@@ -737,6 +745,8 @@ class VirusTotalConnector:
             if marking_definition["definition_type"] == "TLP":
                 tlp = marking_definition["definition"]
         if not OpenCTIConnectorHelper.check_max_tlp(tlp, self.max_tlp):
+            self.helper.metric_inc("error_count")
+            self.helper.metric_state("stopped")
             raise ValueError(
                 "Do not send any data, TLP of the observable is greater than MAX TLP"
             )
@@ -759,4 +769,6 @@ class VirusTotalConnector:
 
     def start(self):
         """Start the main loop."""
+        # Set default state as `idle`.
+        self.helper.metric_state("idle")
         self.helper.listen(self._process_message)
