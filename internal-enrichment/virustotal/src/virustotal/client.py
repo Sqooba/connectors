@@ -17,7 +17,9 @@ JSONType = dict[str, Any]
 class VirusTotalClient:
     """VirusTotal client."""
 
-    def __init__(self, base_url: str, token: str) -> None:
+    def __init__(
+        self, base_url: str, token: str, metrics: Optional[dict[str, Any]] = None
+    ) -> None:
         """Initialize Virustotal client."""
         # Drop the ending slash if present.
         self.url = base_url[:-1] if base_url[-1] == "/" else base_url
@@ -27,6 +29,7 @@ class VirusTotalClient:
             "accept": "application/json",
             "content-type": "application/json",
         }
+        self.metrics = metrics
 
     def _query(self, url: str) -> Optional[JSONType]:
         """
@@ -62,10 +65,13 @@ class VirusTotalClient:
             response.raise_for_status()
         except requests.exceptions.HTTPError as errh:
             logger.error(f"[VirusTotal] Http error: {errh}")
+            self.helper.metric_inc("client_error_count")
         except requests.exceptions.ConnectionError as errc:
             logger.error(f"[VirusTotal] Error connecting: {errc}")
+            self.helper.metric_inc("client_error_count")
         except requests.exceptions.Timeout as errt:
             logger.error(f"[VirusTotal] Timeout error: {errt}")
+            self.helper.metric_inc("client_error_count")
         except requests.exceptions.RequestException as err:
             logger.error(f"[VirusTotal] Something else happened: {err}")
         except Exception as err:
@@ -73,6 +79,7 @@ class VirusTotalClient:
         try:
             return response.json()
         except json.JSONDecodeError as err:
+            self.helper.metric_inc("client_error_count")
             logger.error(
                 f"[VirusTotal] Error decoding the json: {err} - {response.text}"
             )
