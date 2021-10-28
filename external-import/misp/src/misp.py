@@ -252,6 +252,9 @@ class Misp:
         while True:
             now = datetime.now(pytz.UTC)
             friendly_name = "MISP run @ " + now.astimezone(pytz.UTC).isoformat()
+            self.helper.metric_inc("run_count")
+            self.helper.metric_state("running")
+            timestamp = int(time.time())
             work_id = self.helper.api.work.initiate_work(
                 self.helper.connect_id, friendly_name
             )
@@ -348,6 +351,7 @@ class Misp:
                             raise ValueError(events["message"])
                 except Exception as e:
                     self.helper.log_error(f"Error fetching misp event: {e}")
+                    self.helper.metric_inc("client_error_count")
                     try:
                         events = self.misp.search("events", **kwargs)
                         if isinstance(events, dict):
@@ -355,6 +359,7 @@ class Misp:
                                 raise ValueError(events["message"])
                     except Exception as e:
                         self.helper.log_error(f"Error fetching misp event again: {e}")
+                        self.helper.metric_inc("client_error_count")
                         break
 
                 self.helper.log_info("MISP returned " + str(len(events)) + " events.")
@@ -402,10 +407,13 @@ class Misp:
             )
             self.helper.log_info(message)
             self.helper.api.work.to_processed(work_id, message)
+
             if self.helper.connect_run_and_terminate:
                 self.helper.log_info("Connector stop")
+                self.helper.metric_state("stopped")
                 sys.exit(0)
 
+            self.helper.metric_state("idle")
             time.sleep(self.get_interval())
 
     def process_events(self, work_id, events):
@@ -867,7 +875,8 @@ class Misp:
             self.helper.send_stix2_bundle(
                 bundle, work_id=work_id, update=self.update_existing_data
             )
-            return last_event_timestamp
+            self.helper.metric_inc("record_send", len(bundle_objects))
+        return last_event_timestamp
 
     def _get_pdf_file(self, attribute):
         if not self.import_with_attachments:
@@ -1027,6 +1036,7 @@ class Misp:
                     )
                 except Exception as e:
                     self.helper.log_error(f"Error processing indicator {name}: {e}")
+                    self.helper.metric_inc("error_count")
             observable = None
             if self.misp_create_observables and observable_type is not None:
                 try:
@@ -1160,6 +1170,7 @@ class Misp:
                     self.helper.log_error(
                         f"Error creating observable type {observable_type} with value {observable_value}: {e}"
                     )
+                    self.helper.metric_inc("error_count")
             sightings = []
             identities = []
             if "Sighting" in attribute:
