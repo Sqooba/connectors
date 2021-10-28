@@ -11,6 +11,7 @@ connector:
   update_existing_data: true
   run_and_terminate: false
   log_level: 'info'
+  expose_metrics: False
 
 mitre:
   enterprise_file_url: 'https://raw.githubusercontent.com/mitre/cti/master/enterprise-attack/enterprise-attack.json'
