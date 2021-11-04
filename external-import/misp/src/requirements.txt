@@ -1,4 +1,4 @@
-pycti==5.1.4
+git+https://github.com/Sqooba/client-python@release#egg=pycti
 urllib3==1.26.7
 pymisp
 python-dateutil==2.8.2
