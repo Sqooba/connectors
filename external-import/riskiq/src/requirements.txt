@@ -1,3 +1,4 @@
-pycti==5.0.3
+#pycti==5.0.3
+git+https://github.com/Sqooba/client-python@release#egg=pycti
 stix2==2.1.0
 urllib3==1.26.6
