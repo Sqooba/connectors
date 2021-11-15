@@ -1,0 +1,4 @@
+elasticsearch==7.15.1
+git+https://github.com/Sqooba/client-python@release#egg=pycti
+stix2==2.1.0
+validators~=0.18.2
