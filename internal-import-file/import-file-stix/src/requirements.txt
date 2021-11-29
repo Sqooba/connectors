@@ -1,4 +1,4 @@
-pycti==5.8.2
+git+https://gitlab.king.zoo./sqooba/client-python@5.8.2-sqb-3.2.0#egg=pycti
 maec==4.1.0.17
 numpy==1.25.0
 stix2-elevator==4.1.7
