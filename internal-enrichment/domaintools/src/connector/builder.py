@@ -223,16 +223,19 @@ class DtBuilder:
         str
             Id of created relationship.
         """
+        kwargs = {
+            "created_by_ref": self.author,
+            "confidence": self.helper.connect_confidence_level,
+            "description": description,
+        }
+        if start_date != "" and end_date != "":
+            kwargs |= {"start_time": start_date, "stop_time": end_date}
         domain_to_target = Relationship(
             id=OpenCTIStix2Utils.generate_random_stix_id("relationship"),
             relationship_type="resolves-to",
             source_ref=source_id,
             target_ref=target_id,
-            created_by_ref=self.author,
-            confidence=self.helper.connect_confidence_level,
-            description=description,
-            start_time=start_date,
-            stop_time=end_date,
+            **kwargs,
         )
 
         self.bundle.append(domain_to_target)
@@ -267,16 +270,19 @@ class DtBuilder:
         str
             Id of created relationship.
         """
+        kwargs = {
+            "created_by_ref": self.author,
+            "confidence": self.helper.connect_confidence_level,
+            "description": description,
+        }
+        if start_date != "" and end_date != "":
+            kwargs |= {"start_time": start_date, "stop_time": end_date}
         rel = Relationship(
             id=OpenCTIStix2Utils.generate_random_stix_id("relationship"),
             relationship_type="related-to",
             source_ref=source_id,
             target_ref=target_id,
-            created_by_ref=self.author,
-            confidence=self.helper.connect_confidence_level,
-            description=description,
-            start_time=start_date,
-            stop_time=end_date,
+            **kwargs,
         )
 
         self.bundle.append(rel)
@@ -338,16 +344,19 @@ class DtBuilder:
         """
         email_id = self.create_email(target)
         if email_id is not None:
+            kwargs = {
+                "created_by_ref": self.author,
+                "confidence": self.helper.connect_confidence_level,
+                "description": description,
+            }
+            if start_date != "" and end_date != "":
+                kwargs |= {"start_time": start_date, "stop_time": end_date}
             domain_to_email = Relationship(
                 id=OpenCTIStix2Utils.generate_random_stix_id("relationship"),
                 relationship_type="related-to",
                 source_ref=source,
                 target_ref=email_id,
-                created_by_ref=self.author,
-                confidence=self.helper.connect_confidence_level,
-                description=description,
-                start_time=start_date,
-                stop_time=end_date,
+                **kwargs,
             )
 
             self.bundle.append(domain_to_email)
@@ -424,15 +433,19 @@ class DtBuilder:
             custom_properties=self.custom_props,
         )
 
+        kwargs = {
+            "created_by_ref": self.author,
+            "confidence": self.helper.connect_confidence_level,
+        }
+        if start_date != "" and end_date != "":
+            kwargs |= {"start_time": start_date, "stop_time": end_date}
+
         ip_to_as = Relationship(
             id=OpenCTIStix2Utils.generate_random_stix_id("relationship"),
             relationship_type="belongs-to",
             source_ref=source,
             target_ref=auto_system.id,
-            created_by_ref=self.author,
-            confidence=self.helper.connect_confidence_level,
-            start_time=start_date,
-            stop_time=end_date,
+            **kwargs,
         )
 
         self.bundle += (auto_system, ip_to_as)
