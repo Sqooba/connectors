@@ -21,8 +21,8 @@ CONTACTS_TYPE = {
 }
 
 DOMAIN_FIELDS = {
-    "MX": "mx-server",
-    "NS": "name-server",
+    "mx": "mx-server",
+    "name_server": "name-server",
 }
 
 IP_FIELDS = {"A": "domain-ip"}
