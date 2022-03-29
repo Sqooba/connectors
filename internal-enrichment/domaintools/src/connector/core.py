@@ -55,6 +55,8 @@ class DomainToolsConnector:
             ["domaintools", "app_kibana_redirect_url"],
             config,
         )
+        if self.app_kibana_redirect_url[-1] == "/":
+            self.app_kibana_redirect_url = self.app_kibana_redirect_url[:-1]
 
         # Check that the account is valid by trying to retrieve account info.
         try:
@@ -132,7 +134,9 @@ class DomainToolsConnector:
                 expiration_date = datetime.strptime(expiration_date, "%Y-%m-%d")
 
             if creation_date >= expiration_date:
-                self.helper.log_warning(f"Expiration date {expiration_date} not after creation date {creation_date}, not using dates.")
+                self.helper.log_warning(
+                    f"Expiration date {expiration_date} not after creation date {creation_date}, not using dates."
+                )
                 creation_date = ""
                 expiration_date = ""
 
@@ -165,9 +169,7 @@ class DomainToolsConnector:
             # Get domains (name-server / mx)
             for category, description in DOMAIN_FIELDS.items():
                 for values in entry.get(category, ()):
-                    if (domain := values["domain"]["value"]) != entry[
-                        "domain"
-                    ]:
+                    if (domain := values["domain"]["value"]) != entry["domain"]:
                         if not validators.domain(domain):
                             self.helper.metric_inc("error_count")
                             self.helper.log_warning(
@@ -235,6 +237,16 @@ class DomainToolsConnector:
                     creation_date,
                     expiration_date,
                     "redirect",
+                )
+
+        # Create the link to kibana for the current observable (only for domain-name).
+        if len(builder.bundle) > 1 and observable["entity_type"] == "Domain-Name":
+            description = observable["x_opencti_description"] or ""
+            if self.app_kibana_redirect_url not in description:
+                description += f"\n\nLink to kibana: {self.app_kibana_redirect_url}/?domain={observable['observable_value']}"
+                self.helper.api.stix_cyber_observable.update_field(
+                    id=observable["id"],
+                    input={"key": "x_opencti_description", "value": description},
                 )
 
         if len(builder.bundle) > 1:
