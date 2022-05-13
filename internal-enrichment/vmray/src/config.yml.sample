@@ -1,0 +1,20 @@
+opencti:
+  url: 'http://localhost:8080'
+  token: 'ChangeMe'
+
+connector:
+  id: 'ChangeMe'
+  type: 'INTERNAL_ENRICHMENT'
+  name: 'VMRay - Enrichment'
+  scope: 'StixFile'
+  auto: false # Enable/disable auto-enrichment of observables
+  confidence_level: 80 # From 0 (Unknown) to 100 (Fully trusted)
+  log_level: 'info'
+  expose_metrics: false
+
+vmray:
+  url: 'ChangeMe'
+  api_key: 'ChangeMe'
+  elasticsearch_url: 'ChangeMe'
+  elasticsearch_index: 'ChangeMe'
+  run_on_s: false
