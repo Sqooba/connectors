@@ -9,9 +9,10 @@ from stix2 import Identity
 from pycti import OpenCTIConnectorHelper, get_config_variable
 
 from .builder import VMRAYBuilder
-from .es_client import EsClient
-from .constants import EntityType, HASHES_TYPE, SCOS_FIELD, ErrorMessage
-from .yara_fetcher import YaraFetcher
+from .utils.es_client import EsClient
+from .utils.constants import EntityType, HASHES_TYPE, SCOS_FIELD, ErrorMessage
+from .utils.yara_fetcher import YaraFetcher
+from .utils.utils import deep_get
 
 
 class VMRayConnector:
@@ -25,7 +26,7 @@ class VMRayConnector:
         config_file_path = Path(__file__).parent.parent.resolve() / "config.yml"
 
         config = (
-            yaml.load(open(config_file_path, encoding="utf-8"), Loader=yaml.FullLoader)
+            yaml.safe_load(open(config_file_path, encoding="utf-8"))
             if config_file_path.is_file()
             else {}
         )
@@ -67,7 +68,7 @@ class VMRayConnector:
             description="VMRay is the most comprehensive and accurate solution for automated"
             " detection and analysis of advanced threats. The VMRay Platform offers unparalleled"
             " evasion resistance, noise-free reporting and scalability by combining reputation"
-            " and static analysis with groundbreaking sandbox technology and 27 unique technologies.",
+            " and static analysis with groundbreaking sandbox technology.",
             confidence=self.helper.connect_confidence_level,
         )
         # Open ES & Yara connections
@@ -130,24 +131,28 @@ class VMRayConnector:
                     # =============== Process analysis ================= #
 
                     # Process SCOs
-                    for sco in SCOS_FIELD.values():
-                        if sco["key"] in builder.summary:
-                            for key in builder.summary.get(sco["key"]):
-                                try:
-                                    # Create STIX SCO
-                                    getattr(builder, sco["transform"])(
-                                        builder.summary[sco["key"]][key]
-                                    )
-                                except Exception as ex:
-                                    self.helper.metric_inc("client_error_count")
-                                    self.helper.log_error(
-                                        f"{ErrorMessage.STIX_ERROR.format('VMRay', sco['key'])} : {ex}"
-                                    )
+                    for sco in [
+                        s for s in SCOS_FIELD.values() if s["key"] in builder.summary
+                    ]:
+                        for key in builder.summary.get(sco["key"]):
+                            try:
+                                # Create STIX SCO
+                                getattr(builder, sco["transform"])(
+                                    builder.summary[sco["key"]][key]
+                                )
+                            except Exception as ex:
+                                self.helper.metric_inc("client_error_count")
+                                self.helper.log_error(
+                                    f"{ErrorMessage.STIX_ERROR.format('VMRay', sco['key'])} : {ex}"
+                                )
 
                     # Create Yara rule
                     if "matches" in builder.summary.get("yara"):
-                        for key in builder.summary.get("yara").get("matches"):
-                            yara_data = builder.summary.get("yara").get("matches")[key]
+                        yara_matches = deep_get(builder.summary, "yara", "matches")
+                        for key in yara_matches:
+                            yara_data = deep_get(builder.summary, "yara", "matches")[
+                                key
+                            ]
                             # Access yara name and id if not None
                             if (
                                 yara_data.get("rule_name") is not None
@@ -160,7 +165,8 @@ class VMRayConnector:
                                 self.helper.log_debug(f"YARA_RULE: {yara_rule}")
                             else:
                                 self.helper.log_error(
-                                    f"[VMRay] A key is missing (name or id) in the yara match ({yara_data}), skipping"
+                                    "[VMRay] A key is missing (name or id) in the yara match "
+                                    f"({yara_data}), skipping"
                                 )
                                 continue
 
@@ -186,11 +192,12 @@ class VMRayConnector:
                             )
                     else:
                         self.helper.log_warning(
-                            "[VMRay] Field 'static_data' not found in summary, cannot generate xopenctitext"
+                            "[VMRay] Field 'static_data' not found in summary,"
+                            " cannot generate xopenctitext"
                         )
 
                     # Create relationships
-                    for ref in builder.object_refs:
+                    for ref in builder.relationships:
                         try:
                             # Create STIX Relationship
                             builder.create_relationship(ref)
@@ -203,7 +210,7 @@ class VMRayConnector:
 
                     try:
                         # Create STIX Report
-                        builder.create_report()
+                        builder.create_report(stix_file["standard_id"])
                     except Exception as ex:
                         self.helper.metric_inc("client_error_count")
                         self.helper.log_error(
@@ -225,6 +232,9 @@ class VMRayConnector:
 
                     try:
                         # Serialize and send the Bundle
+                        self.helper.log_info(
+                            f"Sending a bundle with : {len(bundle.objects)} entities"
+                        )
                         attached_counter += len(bundle.objects)
                         self.helper.metric_inc("record_send", 1 + len(bundle.objects))
                         self.helper.send_stix2_bundle(bundle.serialize())
@@ -248,9 +258,7 @@ class VMRayConnector:
 
                 # No attachment found
                 self.helper.log_info("All bundles were empty, no attachment to send")
-                raise ValueError(
-                    "Sample type not supported."
-                )
+                raise ValueError("Sample type not supported.")
 
         # No data founded on ES
         self.helper.log_info(f"[VMRay] no result for stixfile with SHA : {sha}")
