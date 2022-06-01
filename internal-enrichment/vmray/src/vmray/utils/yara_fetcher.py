@@ -1,16 +1,17 @@
 # -*- coding: utf-8 -*-
 """Yara fetcher client module."""
 import json
-from typing import Any, Optional
-from pycti import OpenCTIConnectorHelper
+
+from typing import Any, Optional, Dict
 import requests
-from requests.adapters import HTTPAdapter
-from requests.packages.urllib3.util.retry import Retry
 import plyara
 import plyara.utils
+from pycti import OpenCTIConnectorHelper
+from urllib3.util import Retry
+from requests.adapters import HTTPAdapter
 
 # Custom type to simulate a JSON format.
-JSONType = dict[str, Any]
+JSONType = Dict[str, Any]
 
 
 class YaraFetcher:
@@ -29,7 +30,22 @@ class YaraFetcher:
 
     def _query(self, url: str) -> Optional[JSONType]:
         """
-        Query VMRay API
+        Query VMRay API.
+
+        Paramaters
+        ----------
+        url: str
+            * The VMRay url formatted with the ruleset_id
+        Returns
+        -------
+        JSON
+            * The JSON formatted result
+        Raise
+        -------
+        requests.exceptions
+            * If a request exception occurred
+        Exception
+            * If the exception is unknown
         """
         self.helper.log_info(f"[VMRay] _query(): {url}")
         # Configure the adapter for the retry strategy.
@@ -73,13 +89,12 @@ class YaraFetcher:
 
         Parameters
         ----------
-        ruleset_id : str
-            Ruleset id to retrieve.
-
+        ruleset_id: str
+            * Ruleset id to retrieve
         Returns
         -------
-        JSON
-            YARA ruleset objects, as JSON.
+        JSON:
+            * YARA ruleset objects, as JSON
         """
         url = f"{self.url}/rest/yara/{ruleset_id}"
         return self._query(url)
@@ -90,40 +105,53 @@ class YaraFetcher:
 
         Parameters
         ----------
-        ruleset_id : str
-            Ruleset id to retrieve.
-        rule_name : str
-            Rule name to retrieve.
-
+        ruleset_id: str
+            * Ruleset id to retrieve
+        rule_name: str
+            * Rule name to retrieve
         Returns
         -------
         JSON
-            YARA rule object as JSON (as parsed by plyara).
+            * YARA rule object as JSON (as parsed by plyara)
         """
         # Lookup in the cache for the rule, otherwise, request VMRay API.
-        rule = None
+        existing_rule = None
         rule_key = self.get_rule_key(ruleset_id, rule_name)
         if rule_key in self.yara_cache:
             self.helper.log_debug(f"Retrieving YARA rule {rule_key} from cache.")
-            rule = self.yara_cache[rule_key]
+            existing_rule = self.yara_cache[rule_key]
         else:
             self.helper.log_debug(f"Retrieving YARA rule {rule_key} from API.")
             ruleset = self._get_yara_ruleset(ruleset_id)
             # Parse the rules to store them in cache
             parser = plyara.Plyara()
             rules = parser.parse_string(ruleset["data"][0]["yara_ruleset_rules"])
-            for r in rules:
-                cache_key = self.get_rule_key(ruleset_id, r["rule_name"])
-                self.yara_cache[cache_key] = r
-                if r["rule_name"] == rule_name:
-                    rule = r
+            for rule in rules:
+                cache_key = self.get_rule_key(ruleset_id, rule["rule_name"])
+                self.yara_cache[cache_key] = rule
+                if rule["rule_name"] == rule_name:
+                    existing_rule = rule
 
-        if rule is not None:
-            return rule
+        if existing_rule is not None:
+            return existing_rule
         else:
             self.helper.log_warning(f"No YARA rule for rule {rule_key}")
             return None
 
     @staticmethod
     def get_rule_key(ruleset_id: str, rule_name: str) -> str:
-       return f"{ruleset_id}::{rule_name}"
+        """
+        Concatenate the ruleset id and the rule name in a specific format.
+
+        Parameters
+        ----------
+        ruleset_id: str
+            * Ruleset id add to the string
+        rule_name: str
+            * Rule name add to the string
+        Returns
+        -------
+        str:
+            * The string correctly formatted
+        """
+        return f"{ruleset_id}::{rule_name}"

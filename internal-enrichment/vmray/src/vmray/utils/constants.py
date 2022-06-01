@@ -16,6 +16,10 @@ class ErrorMessage:
     ES_NOT_FOUND = (
         "[{}] - Analysis not found on ElasticSearch throught VMRay enrichment connector"
     )
+    ROOT_SAMPLE_NOT_FOUND = "[{}] - Root sample not found, operation aborted"
+    WRONG_ANALYSIS = "[{}] - The analysis sent to the builder is inconsistent"
+    POORLY_TYPED_ANALYSED = """[{}] - The analysis sent to the builder does not respect the mandatory types,
+                            field 'sample_details' must be of type dict and field 'summary' type str"""
 
 
 class EntityType(Enum):
@@ -24,13 +28,29 @@ class EntityType(Enum):
     STIXFILE = "StixFile"
 
 
+class RelationshipType(Enum):
+    """Enumeration of possible relationships type."""
+
+    RELATED = "related-to"
+    RESOLVES = "resolves-to"
+
+
 # Be careful, the order matters
 SCOS_FIELD = {
-    "FILE": {"key": "files", "transform": "create_file"},
-    "DOMAIN": {"key": "domains", "transform": "create_domain"},
-    "EMAIL_ADDRESS": {"key": "email_addresses", "transform": "create_email_address"},
-    "IP": {"key": "ip_addresses", "transform": "create_ip"},
-    "URL": {"key": "urls", "transform": "create_url"},
+    "DOMAIN": {"key": "domains", "transform": "create_domain", "sample": False},
+    "EMAIL-ADDRESS": {
+        "key": "email_addresses",
+        "transform": "create_email_address",
+        "sample": False,
+    },
+    "IP": {"key": "ip_addresses", "transform": "create_ip", "sample": False},
+    "FILE": {"key": "files", "transform": "create_file", "sample": True},
+    "URL": {"key": "urls", "transform": "create_url", "sample": True},
+    "EMAIL-MESSAGE": {
+        "key": "emails",
+        "transform": "create_email_message",
+        "sample": True,
+    },
 }
 
 HASHES_TYPE = {
