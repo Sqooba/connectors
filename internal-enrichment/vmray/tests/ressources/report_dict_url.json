@@ -298,7 +298,7 @@
                 "classifications": [],
                 "is_artifact": true,
                 "is_ioc": false,
-                "is_sample": true,
+                "is_sample": false,
                 "nr_attachments": 1,
                 "nr_links": 1,
                 "recipients": [
@@ -425,7 +425,7 @@
                 },
                 "is_artifact": true,
                 "is_ioc": false,
-                "is_sample": true,
+                "is_sample": false,
                 "mime_type": "application/vnd.microsoft.portable-executable",
                 "operations": [],
                 "ref_av_matches": [],
@@ -5007,7 +5007,7 @@
                 ],
                 "is_artifact": true,
                 "is_ioc": false,
-                "is_sample": false,
+                "is_sample": true,
                 "operations": [
                     "get"
                 ],
