@@ -1,62 +1,41 @@
-# pylint: disable=too-few-public-methods
 # -*- coding: utf-8 -*-
-"""VMRay enrichment module."""
+"""VMRay enrichment module builder."""
 
-from dataclasses import dataclass
 import json
 import datetime
-from urllib.parse import urlparse
-from typing import Any, Union, List
-import plyara
-import validators
 
-from pycti import OpenCTIConnectorHelper, OpenCTIStix2Utils, StixCyberObservable 
+from typing import Any, Union, List, Dict
+
+import validators
+import plyara
+
+from pycti import OpenCTIConnectorHelper, StixCyberObservable
 from stix2 import (
     Bundle,
-    Report,
     DomainName,
     EmailAddress,
+    EmailMessage,
     File,
     Identity,
     Indicator,
     IPv4Address,
-    URL,
     Relationship,
+    Report,
     TLP_AMBER,
-    CustomObservable,
-    properties,
+    URL,
 )
-from .constants import BLACKLIST_DOMAIN, INVALID_DOMAIN, STATIC_DATA_FIELD, ErrorMessage
 
-
-@CustomObservable(
-    "x-opencti-text",
-    [
-        ("value", properties.StringProperty(required=True)),
-        ("object_marking_refs", TLP_AMBER),
-    ],
+from .models.open_cti_text import OpenCtiText
+from .models.relationship_ref import RelationshipRef
+from .utils.utils import deep_get, format_domain, get_id, format_email_address
+from .utils.constants import (
+    BLACKLIST_DOMAIN,
+    INVALID_DOMAIN,
+    SCOS_FIELD,
+    STATIC_DATA_FIELD,
+    RelationshipType,
+    ErrorMessage,
 )
-class OpenCtiText:
-    """Wrapper class for CustomObservable"""
-
-
-@dataclass
-class RelationshipRef:
-    """
-    This class represent the needed values to build a STIX relationship.
-    Parameters
-    ----------
-    description: str
-        * The description field used to build the SRO
-    target: str
-        * The target id used to build the SRO
-    source: str
-        * The source id used to build the SRO
-    """
-
-    source: str
-    target: str
-    description: str = "VMRay: sample to IOC"
 
 
 class VMRAYBuilder:
@@ -67,11 +46,18 @@ class VMRAYBuilder:
 
     _SPEC_VERSION = "2.1"
 
-    def __init__(self, author: Identity, run_on_s: bool, analysis: dict, helper: OpenCTIConnectorHelper):
+    def __init__(
+        self,
+        author: Identity,
+        run_on_s: bool,
+        analysis: dict,
+        helper: OpenCTIConnectorHelper,
+    ):
         """Initialize VMRayBuilder."""
         self.author = author
         self.run_on_s = run_on_s
-        self.object_refs: List[RelationshipRef] = []
+        self.object_refs: List[str] = []
+        self.relationships: List[RelationshipRef] = []
         self.bundle = []
         self.helper = helper
         self.sample_id = None
@@ -83,12 +69,9 @@ class VMRAYBuilder:
             and isinstance(analysis["summary"], str)
         ):
             if not analysis.get("summary") or not analysis.get("sample_details"):
-                raise KeyError("The analysis sent to the builder is inconsistent")
+                raise KeyError(ErrorMessage.WRONG_ANALYSIS.format("BUILDER"))
         else:
-            raise TypeError(
-                "The analysis sent to the builder does not respect the mandatory types,"
-                + "field 'sample_details' must be of type dict and field 'summary' must be of type str"
-            )
+            raise TypeError(ErrorMessage.POORLY_TYPED_ANALYSED.format("BUILDER"))
 
         # Initialize local analysis
         self.summary = json.loads(analysis["summary"])
@@ -99,15 +82,16 @@ class VMRAYBuilder:
             "x_opencti_created_by_ref": author["id"],
             "x_metis_modified_on_s": run_on_s,
         }
+
         # Retrieve the sample id
         self.sample_id = self.get_sample_id()
         if self.sample_id is None:
-            self.helper.log_error(
-                "The root sample was not found in the summary, this information in mandatory in order to build relationships."
+            self.helper.log_warning(
+                "The root sample was not found in the summary, "
+                "this information in mandatory in order to build relationships."
             )
-            raise ValueError("Root sample not found, operation aborted")
 
-    def create_file(self, file: dict[str, Any]) -> str:
+    def create_file(self, file: Dict[str, Any]) -> str:
         """
         Create a STIX file SCO and append it to the bundle.
 
@@ -120,28 +104,37 @@ class VMRAYBuilder:
         str:
             The id of the generated stix file
         """
+        # Default values
+        filename = None
+        stix_id = get_id("file")
+
+        # If this is the sample, the ID has already been generated
+        if file.get("is_sample"):
+            stix_id = self.sample_id
+
         # Check for non-empty hash and hash with a length greater than 4 characters
         hashes = {
             k: v
             for k, v in file.get("hash_values").items()
             if (v is not None and len(v) > 4)
         }
-        # stix_id = self.get_id("file")
-        filename = None
 
         # Try to set a filename
         if file.get("ref_filenames"):
             for ref in file.get("ref_filenames"):
-                # Set the filename
-                filename = (
-                    self.summary.get(ref["path"][0]).get(ref["path"][1]).get("filename")
+                # Set the filename if possible
+                filename = deep_get(
+                    self.summary,
+                    *ref["path"][:2],
+                    "filename",
+                    default=hashes.get("sha256"),
                 )
         else:
             # No filename found, use the hash
             filename = hashes.get("sha256")
 
         sco_obj = File(
-            id=self.get_id("file"),
+            id=stix_id,
             hashes=hashes,
             type="file",
             spec_version=self._SPEC_VERSION,
@@ -151,43 +144,68 @@ class VMRAYBuilder:
             size=file.get("size"),
             custom_properties=self.custom_props,
         )
+        if self.sample_id:
+            self.relationships.append(RelationshipRef(self.sample_id, sco_obj.id, None))
 
-        if not file.get("is_sample"):
-            # If the file is not the sample, we need a relation
-            self.object_refs.append(RelationshipRef(self.sample_id, sco_obj.id))
-
+        self.object_refs.append(sco_obj.id)
         self.bundle.append(sco_obj)
         return sco_obj.id
 
-    def create_ip(self, ip: dict[str, Any]) -> None:
+    def create_ip(self, ip_addr: Dict[str, Any]) -> None:
         """
         Create a STIX ip_address SCO and append it to the bundle.
+
         Parameters
         ----------
-        ip: dict[str, Any]
+        ip_addr: dict[str, Any]
             * The analysis's chunk needed to generate the object (ex: ip_address_0)
         Raise
         -------
         ValueError
             * If the ip address value is invalid
         """
-        if not validators.ipv4(ip["ip_address"]):
-            raise ValueError(ErrorMessage.INVALID_VALUE.format("IP", ip["ip_address"]))
+        if not validators.ipv4(ip_addr["ip_address"]):
+            raise ValueError(
+                ErrorMessage.INVALID_VALUE.format("IP", ip_addr["ip_address"])
+            )
 
         sco_obj = IPv4Address(
-            id=self.get_id("ipv4-addr"),
+            id=get_id("ipv4-addr"),
             type="ipv4-addr",
             spec_version=self._SPEC_VERSION,
-            value=ip.get("ip_address"),
+            value=ip_addr.get("ip_address"),
             object_marking_refs=TLP_AMBER,
             custom_properties=self.custom_props,
         )
-        self.bundle.append(sco_obj)
-        self.object_refs.append(RelationshipRef(self.sample_id, sco_obj.id))
 
-    def create_url(self, url: dict[str, Any]) -> None:
+        # Check for relation to domain (resolves-to)
+        if ip_addr.get("ref_domains"):
+            for ref in ip_addr.get("ref_domains"):
+                obj = ref["path"]
+                raw_domain = deep_get(self.summary, *obj[:2])
+                if raw_domain:
+                    # Domain found in the summary, check in the bundle
+                    domain = self.get_from_bundle(
+                        "domain-name", raw_domain["domain"], "value"
+                    )
+                    if domain:
+                        # Domain in the bundle, create a relationship
+                        self.relationships.append(
+                            RelationshipRef(
+                                domain.id, sco_obj.id, RelationshipType.RESOLVES.value
+                            )
+                        )
+
+        if self.sample_id:
+            self.relationships.append(RelationshipRef(self.sample_id, sco_obj.id, None))
+
+        self.object_refs.append(sco_obj.id)
+        self.bundle.append(sco_obj)
+
+    def create_url(self, url: Dict[str, Any]) -> None:
         """
         Create a STIX url SCO and append it to the bundle.
+
         Parameters
         ----------
         url: dict[str, Any]
@@ -197,43 +215,146 @@ class VMRAYBuilder:
         ValueError
             * If the url value is invalid
         """
+        # Default values
+        stix_id = get_id("url")
+
+        # If this is the sample, the ID has already been generated
+        if url.get("is_sample"):
+            stix_id = self.sample_id
+
         if not validators.url(url["url"]):
             raise ValueError(ErrorMessage.INVALID_VALUE.format("URL", url["url"]))
 
         sco_obj = URL(
-            id=self.get_id("url"),
+            id=stix_id,
             value=url["url"],
             type="url",
             spec_version=self._SPEC_VERSION,
             object_marking_refs=TLP_AMBER,
             custom_properties=self.custom_props,
         )
-        self.bundle.append(sco_obj)
-        self.object_refs.append(RelationshipRef(self.sample_id, sco_obj.id))
 
-    def create_email_address(self, email: dict[str, Any]) -> None:
+        if self.sample_id:
+            self.relationships.append(RelationshipRef(self.sample_id, sco_obj.id, None))
+
+        self.object_refs.append(sco_obj.id)
+        self.bundle.append(sco_obj)
+
+    def create_email_address(self, email: Dict[str, Any]) -> None:
         """
         Create a STIX email_address SCO and append it to the bundle.
+
         Parameters
         ----------
         email: dict[str, Any]
             * The analysis's chunk needed to generate the object (ex: email_address_0)
+         Raise
+        -------
+        ValueError
+            * If the email address value is invalid
         """
+        # Default values
+        email_address = email.get("email_address")
+        email_formatted = format_email_address(email_address)
+
+        # If the email-address is not valid, raise a ValueError
+        if email_formatted is None or not validators.email(email_formatted):
+            raise ValueError(
+                ErrorMessage.INVALID_VALUE.format("EMAIL_ADDRESS", email_address)
+            )
+
+        self.helper.log_info(
+            f"An email addr will be created with value : {email_formatted}"
+        )
+
         sco_obj = EmailAddress(
-            id=self.get_id("email-addr"),
-            value=email["email_address"],
+            id=get_id("email-addr"),
+            value=email_formatted,
             type="email-addr",
             spec_version=self._SPEC_VERSION,
             object_marking_refs=TLP_AMBER,
             custom_properties=self.custom_props,
         )
-        self.bundle.append(sco_obj)
-        self.object_refs.append(RelationshipRef(self.sample_id, sco_obj.id))
 
-    def create_domain(self, domain: dict[str, Any]) -> None:
+        if self.sample_id:
+            self.relationships.append(RelationshipRef(self.sample_id, sco_obj.id, None))
+
+        self.object_refs.append(sco_obj.id)
+        self.bundle.append(sco_obj)
+
+    def create_email_message(self, email: Dict[str, Any]) -> None:
+        """
+        Create a STIX email_message SCO and append it to the bundle.
+
+        Parameters
+        ----------
+        email: dict[str, Any]
+            * The analysis's chunk needed to generate the object (ex: email_0)
+        """
+
+        # Default values
+        from_ref = None
+        to_refs = []
+        stix_id = get_id("email-message")
+
+        # If this is the sample, the ID has already been generated
+        if email.get("is_sample"):
+            stix_id = self.sample_id
+
+        # Retrieve sender
+        if email.get("sender"):
+            # Format the sender
+            sender = format_email_address(email.get("sender"))
+            from_ref = self.get_from_bundle("email-addr", sender, "value")
+
+        # Retrieve recipients
+        if email.get("recipients"):
+            for recipient in email.get("recipients"):
+                # Format the recipient
+                recipient = format_email_address(recipient)
+                to_refs.append(self.get_from_bundle("email-addr", recipient, "value"))
+
+        sco_obj = EmailMessage(
+            id=stix_id,
+            type="email-message",
+            is_multipart=True,
+            spec_version="2.1",
+            from_ref=from_ref,
+            to_refs=to_refs,
+            subject=email.get("subject"),
+            object_marking_refs=TLP_AMBER,
+            custom_properties=self.custom_props,
+        )
+
+        # Retrieve attachment files
+        if email.get("ref_attachments"):
+            for ref in email.get("ref_attachments"):
+                obj = ref["path"]
+                raw_file = deep_get(self.summary, obj[0], obj[1])
+                if raw_file:
+                    # File found in the summary, check in the bundle
+                    file = self.get_from_bundle(
+                        "file", raw_file["hash_values"]["sha256"], "hashes", "SHA-256"
+                    )
+                    if file:
+                        # File in the bundle, create a relationship
+                        self.relationships.append(
+                            RelationshipRef(
+                                sco_obj.id, file.id, None, "Email attachment"
+                            )
+                        )
+
+        if self.sample_id:
+            self.relationships.append(RelationshipRef(self.sample_id, sco_obj.id, None))
+
+        self.object_refs.append(sco_obj.id)
+        self.bundle.append(sco_obj)
+
+    def create_domain(self, domain: Dict[str, Any]) -> None:
         """
         Create a STIX domain SCO and append it to the bundle.
-        The sco is not created if the domain-name process is blacklisted.
+        The sco is not created if the domain-name concerned is blacklisted.
+
         Parameters
         ----------
         domain: dict[str, Any]
@@ -245,7 +366,7 @@ class VMRAYBuilder:
         """
         # Default values
         domain_name = domain.get("domain")
-        domain_formatted = self.format_domain(domain_name)
+        domain_formatted = format_domain(domain_name)
 
         # If the domain name is empty or not valid, raise a ValueError
         if (
@@ -265,19 +386,24 @@ class VMRAYBuilder:
             return
 
         sco_obj = DomainName(
-            id=self.get_id("domain-name"),
+            id=get_id("domain-name"),
             type="domain-name",
             spec_version=self._SPEC_VERSION,
             value=domain_name,
             object_marking_refs=TLP_AMBER,
             custom_properties=self.custom_props,
         )
-        self.bundle.append(sco_obj)
-        self.object_refs.append(RelationshipRef(self.sample_id, sco_obj.id))
 
-    def create_xopenctitext(self, static_data: dict[str, Any]) -> None:
+        if self.sample_id:
+            self.relationships.append(RelationshipRef(self.sample_id, sco_obj.id, None))
+
+        self.object_refs.append(sco_obj.id)
+        self.bundle.append(sco_obj)
+
+    def create_xopenctitext(self, static_data: Dict[str, Any]) -> None:
         """
         Create a STIX OpenCtiText custom object and append it to the bundle.
+
         Parameters
         ----------
         static_data: dict[str, Any]
@@ -295,12 +421,16 @@ class VMRAYBuilder:
         if values:
             custom_obj = OpenCtiText(
                 value=values,
-                spec_version=self._SPEC_VERSION,
                 object_marking_refs=TLP_AMBER,
+                spec_version=self._SPEC_VERSION,
                 custom_properties=self.custom_props,
             )
+            if self.sample_id:
+                self.relationships.append(
+                    RelationshipRef(self.sample_id, custom_obj.id, None)
+                )
+            self.object_refs.append(custom_obj.id)
             self.bundle.append(custom_obj)
-            self.object_refs.append(RelationshipRef(self.sample_id, custom_obj.id))
         else:
             self.helper.log_debug(
                 "OpenCtiText not created, not data to process in this static_data key"
@@ -311,6 +441,7 @@ class VMRAYBuilder:
     ) -> None:
         """
         Format a Yara rule to a STIX indicator
+
         Parameters
         ----------
         ruleset_id: str
@@ -331,7 +462,7 @@ class VMRAYBuilder:
             description = f"(Ruleset | name: {ruleset_name}, id: {ruleset_id})"
 
         sdo_obj = Indicator(
-            id=self.get_id("indicator"),
+            id=get_id("indicator"),
             name=yara_rule.get("rule_name", "No rulename provided"),
             description=description,
             type="indicator",
@@ -344,25 +475,31 @@ class VMRAYBuilder:
             object_marking_refs=TLP_AMBER,
             custom_properties=self.custom_props,
         )
+
+        if self.sample_id:
+            self.relationships.append(RelationshipRef(self.sample_id, sdo_obj.id, None))
+
+        self.object_refs.append(sdo_obj.id)
         self.bundle.append(sdo_obj)
-        self.object_refs.append(RelationshipRef(self.sample_id, sdo_obj.id))
 
     def create_relationship(self, rel: RelationshipRef) -> None:
         """
         Create a STIX Relationship and append it to the bundle.
-        To avoid circular dependency, target_id and sample_id must be different
+        To avoid circular dependency, target_id and sample_id must be different.
+
         Parameters
         ----------
         rel: RelationshipRef
-            * The instance that contains the source, the target and the description to build the relationship.
+            * The instance that contains the source,
+            the target and the description to build the relationship.
         """
         if rel.source != rel.target:
             obj_rel = Relationship(
-                id=self.get_id("relationship"),
+                id=get_id("relationship"),
                 created_by_ref=self.author,
                 type="relationship",
                 spec_version=self._SPEC_VERSION,
-                relationship_type="related-to",
+                relationship_type=rel.relationship_type,
                 description=rel.description,
                 source_ref=rel.source,
                 target_ref=rel.target,
@@ -371,9 +508,14 @@ class VMRAYBuilder:
             )
             self.bundle.append(obj_rel)
 
-    def create_report(self) -> None:
+    def create_report(self, stix_id=None) -> None:
         """
-        Create a STIX Report and append it to the bundle.ß
+        Create a STIX Report and append it to the bundle.
+
+        Parameters
+        ----------
+        stix_id: str
+            * The stix file sent by OpenCti
         Raise
         -------
         KeyError
@@ -392,23 +534,29 @@ class VMRAYBuilder:
 
         # Generate Labels and description
         if self.summary.get("classifications") is not None:
-            self.helper.log_info("Field classification found, adding label")
+            self.helper.log_info("[REPORT] - Field classification found, adding label")
             labels.update(self.summary["classifications"])
 
         if "matches" in self.summary.get("vti"):
-            target = self.summary.get("vti").get("matches")
+            # target = self.summary.get("vti").get("matches")
+            target = deep_get(self.summary, "vti", "matches")
             # Append label(s) found in vtis
             for vti in target:
-                self.helper.log_info(f"VTI found in the summary ({vti})")
-                if "category_desc" in target.get(vti):
+                # Retrieve VTI data
+                category_desc = deep_get(target, vti, "category_desc")
+                operation_desc = deep_get(target, vti, "operation_desc")
+                # Add label field
+                if category_desc is not None:
                     self.helper.log_info(
-                        f"Label {target.get(vti).get('category_desc')} found in vti {vti}"
+                        f"[REPORT] - Label {category_desc} found in vti {vti}"
                     )
-                    labels.add(target.get(vti).get("category_desc"))
+                    labels.add(category_desc)
                 # Add description field
-                if "operation_desc" in target.get(vti):
-                    if target.get(vti).get("operation_desc"):
-                        description.add(target.get(vti).get("operation_desc"))
+                if operation_desc is not None:
+                    self.helper.log_info(
+                        f"[REPORT] - Description {operation_desc} found in vti {vti}"
+                    )
+                    description.add(operation_desc)
 
         # Control description field
         description = ",".join(description) if description else None
@@ -416,14 +564,15 @@ class VMRAYBuilder:
         # Set name
         name = f"VMRay analysis ID {metadata.get('analysis_id', 'unknown')}"
 
-        # Build object_refs with the sample
-        object_refs = [ref.target for ref in self.object_refs] + [self.sample_id]
+        # Add the sample analyzed into the object_refs list
+        if stix_id:
+            self.object_refs.append(stix_id)
 
         # Generate the STIX object
         obj_report = Report(
             name=name,
             description=description,
-            object_refs=object_refs,
+            object_refs=self.object_refs,
             type="report",
             spec_version=self._SPEC_VERSION,
             labels=list(labels),
@@ -439,12 +588,15 @@ class VMRAYBuilder:
         """
         Create a bundle containing the author and the enrichment entities.
         Note: `allow_custom` must be set to True in order to specify the author of an object.
+
         Returns
         -------
         Bundle :
             * The STIX Bundle generated
         """
-        self.helper.log_info(f"Generate bundle with {len(self.bundle)} stix objects")
+        self.helper.log_info(
+            f"Generating a bundle with {len(self.bundle) + 2} stix objects"
+        )
         return Bundle(
             type="bundle",
             objects=[self.author, TLP_AMBER] + self.bundle,
@@ -457,6 +609,7 @@ class VMRAYBuilder:
         """
         This method return the date of the analysis retrieve from the summary.
         If the date field is not found, the current date is retrieve.
+
         Returns
         -------
         str:
@@ -478,83 +631,55 @@ class VMRAYBuilder:
 
         return analysis_date
 
-    def find_from_bundle(
-        self, stix_type: str, key: str, value: str
+    def get_from_bundle(
+        self, stix_type: str, value: str, *keys: List[str]
     ) -> Union[StixCyberObservable, None]:
         """
         Retrieve a specific object from the bundle.
+
         Parameters
         ----------
         stix_type: str
             * The type of STIX object, field type in the entity will be compare
-        key: str
-            * The key to lookup in the STIX object
         value: str
             * The value associated to the corresponding key
+        keys: str
+            * The key to lookup in the STIX object, can be nested
+        Returns
+        -------
+        StixCyberObservable:
+            * The entity found in the bundle
         """
         for entity in self.bundle:
-            if entity["type"] == stix_type and entity.get(key):
-                if entity[key] == value:
+            if entity["type"] == stix_type:
+                if deep_get(entity, *keys) == value:
                     return entity
-        # Return None if the sample is not found
+        # Return None if the stix is not found
         return None
 
     def get_sample_id(self) -> Union[str, None]:
         """
-        Find the root sample in the summary. The root sample is the file_0 in the summary.
+        Find the root sample in the bundle. All the SCO must have been processed before.
+
         Returns
         -------
         str:
             The id of the root sample
         """
-        for f in self.summary.get("files"):
-            file = self.summary["files"][f]
-            if file.get("is_sample"):
-                sample = self.create_file(file)
-                self.helper.log_info(f"Sample ID found : {sample}")
-                return sample
+        # Get each sco keys from constants
+        search_fields = [
+            (k, v["key"]) for k, v in SCOS_FIELD.items() if v.get("sample")
+        ]
+
+        # Get sample ID
+        for field_name, sco_key in search_fields:
+            if [k for k, v in self.summary[sco_key].items() if v.get("is_sample")]:
+                # Sample found
+                stix_id = get_id(field_name.lower())
+                self.helper.log_info(
+                    f"Sample of type {sco_key} found, "
+                    f"an id has been generated with the value : {stix_id}",
+                )
+                return stix_id
+        # Return None if no sample where found
         return None
-
-    @staticmethod
-    def get_id(stix_type: str) -> str:
-        """
-        Create a STIX id using the OpenCTIStix2 library
-        Parameters
-        ----------
-        stix_type: str
-            * The type of stix id to generate
-        Returns
-        -------
-        str:
-            * A valid STIX id
-        """
-        return OpenCTIStix2Utils.generate_random_stix_id(stix_type)
-
-    @staticmethod
-    def format_domain(url: str) -> str:
-        """
-        This method remove 'http://', 'https://' and 'www.' in the url parameter.
-        Some examples :
-            * http://test.com --> test.com
-            * https://test.com --> test.com
-            * http://www.test.com --> test.com
-            * www.test.com --> test.com
-        Parameters
-        ----------
-        url: str
-            * The string that will be process
-        Returns
-        -------
-        str:
-            * A formatted string that contains the desired domain-name format
-        """
-        # Format url
-        formatted = urlparse(url)
-        result = ""
-        # Check if netloc/path is not empty
-        if formatted.netloc:
-            result = formatted.netloc
-        elif formatted.path:
-            result = formatted.path
-        # Replace www. if it exists in the string
-        return result.replace("www.", "")

@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
 """ElasticSearch client module."""
 
-from typing import Any
+from typing import Any, Dict
 from elasticsearch import Elasticsearch
 from .constants import EntityType
 
 # Custom type to simulate a JSON format.
-JSONType = dict[str, Any]
+JSONType = Dict[str, Any]
 
 
 class EsClient:
@@ -20,7 +20,7 @@ class EsClient:
         self.client = Elasticsearch(endpoint)
         self.index = index
 
-    def search(self, sha: str, stixFile: EntityType) -> JSONType:
+    def search(self, sha: str, stix_file: EntityType) -> JSONType:
         """
         Search for the given SHA in all fields named sample_details.sha256_hash.
 
@@ -31,7 +31,7 @@ class EsClient:
         ----------
         sha: str
            The stixFile sha 256 field (sample_details.sha256_hash)
-        stixFile : EntityType
+        stix_file : EntityType
            The type of entity that will be searched
 
         Returns
@@ -45,7 +45,7 @@ class EsClient:
             _source=True,
             query={
                 "simple_query_string": {
-                    "fields": [self.MAPPING[stixFile]],
+                    "fields": [self.MAPPING[stix_file]],
                     "query": sha,
                 }
             },
