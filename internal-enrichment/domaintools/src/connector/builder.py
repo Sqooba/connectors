@@ -6,7 +6,7 @@ import json
 from typing import Any, Optional, Union
 import validators
 
-from pycti import OpenCTIConnectorHelper, OpenCTIStix2Utils
+from pycti import Note as OpenCTINote, OpenCTIConnectorHelper, StixCoreRelationship
 from stix2 import (
     AutonomousSystem,
     Bundle,
@@ -84,7 +84,6 @@ class DtBuilder:
             )
             return None
         domain_obj = DomainName(
-            id=OpenCTIStix2Utils.generate_random_stix_id("domain-name"),
             type="domain-name",
             value=domain,
             object_marking_refs=TLP_AMBER,
@@ -115,7 +114,6 @@ class DtBuilder:
             )
             return None
         email_obj = EmailAddress(
-            id=OpenCTIStix2Utils.generate_random_stix_id("email-addr"),
             value=email,
             object_marking_refs=TLP_AMBER,
             custom_properties=self.custom_props,
@@ -148,7 +146,7 @@ class DtBuilder:
             "Fax": contact.get("fx", None),
         }
         identity = Identity(
-            id=OpenCTIStix2Utils.generate_random_stix_id("identity"),
+            id=Identity.generate_id("identity", "unknown"),
             name=contact.get("org") or contact.get("nm"),
             roles=[CONTACTS_TYPE[t] for t in contact["t"]],
             identity_class="organization",
@@ -181,7 +179,6 @@ class DtBuilder:
             )
             return None
         ip_obj = IPv4Address(
-            id=OpenCTIStix2Utils.generate_random_stix_id("ipv4-addr"),
             type="ipv4-addr",
             value=ip,
             object_marking_refs=TLP_AMBER,
@@ -191,8 +188,38 @@ class DtBuilder:
         self.bundle.append(ip_obj)
         return ip_obj.id
 
-    def create_resolves_to(
+    def create_note(
+            self,
+            source_id: str,
+            abstract: str,
+            content: str,
+    ):
+        """
+        Create a note for the observable and add it to the bundle.
+
+        Parameters
+        ----------
+        source_id : str
+            Standard id of the observable receiving the Note.
+        abstract : str
+            Abstract for the note.
+        content : str
+            Content for the note.
+        """
+        note = Note(
+            id=OpenCTINote.generate_id(),
+            created_by_ref=self.author,
+            confidence=self.helper.connect_confidence_level,
+            object_marking_refs=TLP_AMBER,
+            abstract=abstract,
+            content=content,
+            object_refs=[source_id],
+        )
+        self.bundle.append(note)
+
+    def create_relationship(
         self,
+        relationship_type: str,
         source_id: str,
         target_id: str,
         start_date: datetime,
@@ -200,13 +227,14 @@ class DtBuilder:
         description: Optional[str] = None,
     ) -> str:
         """
-        Create the `resolves-to` relationship between the source and the target.
+        Create a relationship between the source and the target.
 
-        The source_id needs to belong to a `domain-name` object and the target_id to
-        either a domain of `ipv4-addr` object.
+        Author and confidence level is added from class value.
 
         Parameters
         ----------
+        relationship_type : str
+            Type of the relationship (e.g. `related-to`, `belongs-to`, `resolves-to`).
         source_id : str
             Id of the source.
         target_id : str
@@ -226,20 +254,53 @@ class DtBuilder:
         kwargs = {
             "created_by_ref": self.author,
             "confidence": self.helper.connect_confidence_level,
-            "description": description,
         }
+        if description is not None:
+            kwargs["description"] = description
         if start_date != "" and end_date != "":
             kwargs |= {"start_time": start_date, "stop_time": end_date}
-        domain_to_target = Relationship(
-            id=OpenCTIStix2Utils.generate_random_stix_id("relationship"),
-            relationship_type="resolves-to",
+        return Relationship(
+            id=StixCoreRelationship.generate_id(
+                relationship_type, source_id, target_id, start_date, end_date
+            ),
+            relationship_type=relationship_type,
             source_ref=source_id,
             target_ref=target_id,
             **kwargs,
         )
 
-        self.bundle.append(domain_to_target)
-        return domain_to_target
+    def create_resolves_to(
+        self,
+        source_id: str,
+        target_id: str,
+        start_date: datetime,
+        end_date: datetime,
+        description: Optional[str] = None,
+    ) -> str:
+        """
+        Create the `resolves-to` relationship between the source and the target.
+
+        Parameters
+        ----------
+        source_id : str
+            Id of the source, must be the id of a `domain-name`.
+        target_id : str
+            Id of the target, must be the id of a `domain-name` or an `ipv4-addr`.
+        start_date : datetime
+            Starting date for the relationship.
+        end_date : datetime
+            Ending date for the relationship.
+        description : str, optional
+            Description of the relationship (e.g. the type (name-server, redirect, etc.).
+
+        Returns
+        -------
+        str
+            Id of created relationship.
+        """
+        return self.create_relationship(
+            "resolves-to", source_id, target_id, start_date, end_date, description
+        )
 
     def create_related_to(
         self,
@@ -270,52 +331,12 @@ class DtBuilder:
         str
             Id of created relationship.
         """
-        kwargs = {
-            "created_by_ref": self.author,
-            "confidence": self.helper.connect_confidence_level,
-            "description": description,
-        }
-        if start_date != "" and end_date != "":
-            kwargs |= {"start_time": start_date, "stop_time": end_date}
-        rel = Relationship(
-            id=OpenCTIStix2Utils.generate_random_stix_id("relationship"),
-            relationship_type="related-to",
-            source_ref=source_id,
-            target_ref=target_id,
-            **kwargs,
+        rel = self.create_relationship(
+            "related-to", source_id, target_id, start_date, end_date, description
         )
 
         self.bundle.append(rel)
         return rel
-
-    def create_note(
-        self,
-        source_id: str,
-        abstract: str,
-        content: str,
-    ):
-        """
-        Create a note for the observable and add it to the bundle.
-
-        Parameters
-        ----------
-        source_id : str
-            Standard id of the observable receiving the Note.
-        abstract : str
-            Abstract for the note.
-        content : str
-            Content for the note.
-        """
-        note = Note(
-            id=OpenCTIStix2Utils.generate_random_stix_id("note"),
-            created_by_ref=self.author,
-            confidence=self.helper.connect_confidence_level,
-            object_marking_refs=TLP_AMBER,
-            abstract=abstract,
-            content=content,
-            object_refs=[source_id],
-        )
-        self.bundle.append(note)
 
     def link_domain_related_to_email(
         self,
@@ -344,22 +365,9 @@ class DtBuilder:
         """
         email_id = self.create_email(target)
         if email_id is not None:
-            kwargs = {
-                "created_by_ref": self.author,
-                "confidence": self.helper.connect_confidence_level,
-                "description": description,
-            }
-            if start_date != "" and end_date != "":
-                kwargs |= {"start_time": start_date, "stop_time": end_date}
-            domain_to_email = Relationship(
-                id=OpenCTIStix2Utils.generate_random_stix_id("relationship"),
-                relationship_type="related-to",
-                source_ref=source,
-                target_ref=email_id,
-                **kwargs,
+            self.create_relationship(
+                "related-to", source, email_id, start_date, end_date, description
             )
-
-            self.bundle.append(domain_to_email)
 
     def link_domain_resolves_to(
         self,
@@ -427,28 +435,15 @@ class DtBuilder:
             Ending date for the relationship.
         """
         auto_system = AutonomousSystem(
-            id=OpenCTIStix2Utils.generate_random_stix_id("autonomous-system"),
             number=target,
             object_marking_refs=TLP_AMBER,
             custom_properties=self.custom_props,
         )
-
-        kwargs = {
-            "created_by_ref": self.author,
-            "confidence": self.helper.connect_confidence_level,
-        }
-        if start_date != "" and end_date != "":
-            kwargs |= {"start_time": start_date, "stop_time": end_date}
-
-        ip_to_as = Relationship(
-            id=OpenCTIStix2Utils.generate_random_stix_id("relationship"),
-            relationship_type="belongs-to",
-            source_ref=source,
-            target_ref=auto_system.id,
-            **kwargs,
+        self.create_relationship(
+            "belongs-to", source, auto_system.id, start_date, end_date
         )
 
-        self.bundle += (auto_system, ip_to_as)
+        self.bundle.append(auto_system)
 
     def send_bundle(self) -> None:
         """
