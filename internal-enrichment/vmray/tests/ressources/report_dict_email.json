@@ -39,7 +39,7 @@
             "result_code": 1,
             "result_str": "Operation completed successfully",
             "sample_id": 8943,
-            "sample_type": "Windows Exe (x86-32)",
+            "sample_type": "EMAIL (MSG)",
             "submission_filename": "uxhvqy.exe",
             "termination_reason": null,
             "url": null,
@@ -287,6 +287,30 @@
                 ],
                 "threat_names": [],
                 "verdict": "clean"
+            },
+            "email_address_4": {
+                "_type": "email_address",
+                "classifications": [],
+                "email_address": "john_doe@yolo.com",
+                "is_artifact": true,
+                "is_ioc": false,
+                "is_recipient": false,
+                "is_sender": false,
+                "ref_emails": [
+                    {
+                        "_type": "reference",
+                        "path": [
+                            "emails",
+                            "email_0"
+                        ],
+                        "source": "logs/summary_v2.json"
+                    }
+                ],
+                "subjects": [
+                    "Re: \u041e\u0431\u043d\u043e\u0432\u043b\u0435\u043d\u043d\u044b\u0439 \u0442\u0435\u043b\u0435\u0444\u043e\u043d\u043d\u044b\u0439 \u0441\u043f\u0440\u0430\u0432\u043e\u0447\u043d\u0438\u043a 2021"
+                ],
+                "threat_names": [],
+                "verdict": "clean"
             }
         },
         "emails": {
@@ -350,6 +374,69 @@
                     "source": "logs/summary_v2.json"
                 },
                 "sender": "\u0412\u0430\u0434\u0438\u043c \u041c\u0435\u043b\u044c\u043d\u0438\u043a <vadim_melnik88@i.ua>",
+                "subject": "\u0406\u043d\u0444\u043e\u0440\u043c\u0430\u0446\u0456\u044f \u0449\u043e\u0434\u043e \u0432\u0456\u0439\u0441\u044c\u043a\u043e\u0432\u0438\u0445 \u0437\u043b\u043e\u0447\u0438\u043d\u0446\u0456\u0432 \u0420\u0424",
+                "threat_names": [],
+                "verdict": "clean"
+            },
+            "email_1": {
+                "_type": "email",
+                "attachment_types": [
+                    "text/html"
+                ],
+                "classifications": [],
+                "is_artifact": true,
+                "is_ioc": false,
+                "is_sample": true,
+                "nr_attachments": 1,
+                "nr_links": 1,
+                "recipients": [
+                    "john_doe@yolo.com"
+                ],
+                "ref_attachments": [
+                    {
+                        "_type": "reference",
+                        "path": [
+                            "files",
+                            "file_1"
+                        ],
+                        "source": "logs/summary_v2.json"
+                    },
+                    {
+                        "_type": "reference",
+                        "path": [
+                            "files",
+                            "file_2"
+                        ],
+                        "source": "logs/summary_v2.json"
+                    }
+                ],
+                "ref_email_addresses": [
+                    {
+                        "_type": "reference",
+                        "path": [
+                            "email_addresses",
+                            "email_address_0"
+                        ],
+                        "source": "logs/summary_v2.json"
+                    },
+                    {
+                        "_type": "reference",
+                        "path": [
+                            "email_addresses",
+                            "email_address_1"
+                        ],
+                        "source": "logs/summary_v2.json"
+                    }
+                ],
+                "ref_file": {
+                    "_type": "reference",
+                    "path": [
+                        "files",
+                        "file_0"
+                    ],
+                    "source": "logs/summary_v2.json"
+                },
+                "sender": "doumdoum@yolo.com",
                 "subject": "\u0406\u043d\u0444\u043e\u0440\u043c\u0430\u0446\u0456\u044f \u0449\u043e\u0434\u043e \u0432\u0456\u0439\u0441\u044c\u043a\u043e\u0432\u0438\u0445 \u0437\u043b\u043e\u0447\u0438\u043d\u0446\u0456\u0432 \u0420\u0424",
                 "threat_names": [],
                 "verdict": "clean"
