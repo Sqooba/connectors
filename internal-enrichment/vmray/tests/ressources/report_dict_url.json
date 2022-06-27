@@ -39,7 +39,7 @@
             "result_code": 1,
             "result_str": "Operation completed successfully",
             "sample_id": 8943,
-            "sample_type": "Windows Exe (x86-32)",
+            "sample_type": "URL",
             "submission_filename": "uxhvqy.exe",
             "termination_reason": null,
             "url": null,
