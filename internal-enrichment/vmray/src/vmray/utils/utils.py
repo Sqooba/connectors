@@ -6,7 +6,6 @@ import re
 from functools import reduce
 from typing import Any, Union
 from urllib.parse import urlparse
-from pycti import OpenCTIStix2Utils
 from stix2.base import _STIXBase
 
 
@@ -30,22 +29,6 @@ def deep_get(data: Union[dict, str], *keys, default: Any = None) -> Any:
         keys,
         data,
     )
-
-
-def get_id(stix_type: str) -> str:
-    """
-    Create a STIX id using the OpenCTIStix2 library
-
-    Parameters
-    ----------
-    stix_type: str
-        * The type of stix id to generate
-    Returns
-    -------
-    str:
-        * A valid STIX id if founded
-    """
-    return OpenCTIStix2Utils.generate_random_stix_id(stix_type)
 
 
 def format_domain(url: str) -> str:
