@@ -29,7 +29,7 @@ class TestUtils:
         # Test with data as another type
         assert deep_get("", "first") is None, "Result should be None"
         # Test a custom return type, should return an empty list
-        assert isinstance(deep_get(test_values, "wrong-key", default=list()), list)
+        assert isinstance(deep_get(test_values, "wrong-key", default=[]), list)
         # Test a custom return value, should return a specific string
         assert deep_get(test_values, "wrong-key", default="unknown") == "unknown"
         # Test a wrong formatted key proposition
