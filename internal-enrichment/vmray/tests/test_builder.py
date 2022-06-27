@@ -27,7 +27,7 @@ from stix2 import (
 sys.path.append("..")
 from src.vmray.builder import VMRAYBuilder
 from src.vmray.models.open_cti_text import OpenCtiText
-from src.vmray.utils.constants import RelationshipType
+from src.vmray.utils.constants import RelationshipType, EntityType
 
 
 class TestBuilder:
@@ -100,21 +100,26 @@ class TestBuilder:
     @pytest.mark.parametrize(
         "analysis, expected",
         [
-            ("file_analysis", "file--"),
-            ("mail_analysis", "email-message--"),
-            ("url_analysis", "url--"),
+            ("file_analysis", ["file", 1, 0]),
+            ("mail_analysis", ["email-message", 6, 2]),
+            ("url_analysis", ["url", 1, 0]),
+            ("none_analysis", [None, 0, 0]),
         ],
     )
-    def test_get_sample_id(self, analysis, expected, request):
+    def test_get_sample(self, analysis, expected, request):
         """
-        Test the get_sample_id function, in order to test every possibility, multiple analysis are loaded.
+        Test the get_sample function, in order to test every possibility, multiple analysis are loaded.
         """
-        # TODO --> TEST NONE SAMPLE_ID
-        # Test with the default analysis (file)
         builder = VMRAYBuilder(
             self.author, False, request.getfixturevalue(analysis), self.helper
         )
-        assert expected in builder.sample_id
+        # Run tests
+        assert len(builder.bundle) == expected[1]
+        assert len(builder.relationships) == expected[2]
+        if expected[0]:
+            assert builder.sample[1].id.split("--")[0] == expected[0]
+        else:
+            assert not builder.sample
 
     @pytest.mark.parametrize(
         "analysis, expected",
@@ -199,9 +204,9 @@ class TestBuilder:
         )
         # Pass the domain to the create function and retrieve it from the bundle
         builder.create_domain(builder.summary["domains"]["domain_0"])
-        result = builder.bundle[0]
+        result = builder.bundle[1]
         # Run tests
-        assert len(builder.bundle) == 1, "The bundle's length should be equal to 1"
+        assert len(builder.bundle) == 2, "The bundle's length should be equal to 2"
         assert expected.value == result.value, "The value of the domain should match"
         self.default_test(expected, result)
 
@@ -240,9 +245,9 @@ class TestBuilder:
         )
         # Pass the url to the create function and retrieve it from the bundle
         builder.create_url(builder.summary["urls"]["url_0"])
-        result = builder.bundle[0]
+        result = builder.bundle[1]
         # Run tests
-        assert len(builder.bundle) == 1, "The bundle's length should be equal to 1"
+        assert len(builder.bundle) == 2, "The bundle's length should be equal to 2"
         assert expected.value == result.value, "The value of the url should match"
         self.default_test(expected, result)
         # Test invalid url
@@ -267,15 +272,24 @@ class TestBuilder:
         builder.create_email_address(
             builder.summary["email_addresses"]["email_address_2"]
         )
-        result = builder.bundle[0]
+        result = builder.bundle[1]
         # Run tests
-        assert len(builder.bundle) == 1, "The bundle's length should be equal to 1"
-        assert expected.value == result.value, "The value of the url should match"
+        assert len(builder.bundle) == 2, "The bundle's length should be equal to 2"
+        assert (
+            expected.value == result.value
+        ), "The value of the email_address should match"
         self.default_test(expected, result)
         # Test an invalid email-address
         with pytest.raises(ValueError):
             sample_invalid = builder.summary["email_addresses"]["email_address_3"]
             builder.create_email_address(sample_invalid)
+        # Test to create an email address already in the bundle
+        address_bundle = builder.create_email_address(
+            builder.summary["email_addresses"]["email_address_2"]
+        )
+        assert (
+            result.id == address_bundle
+        ), "Email address id should match, this entity has already been push in the bundle"
 
     def test_create_email_message(self, file_analysis):
         """
@@ -290,11 +304,6 @@ class TestBuilder:
             object_marking_refs=TLP_AMBER,
             custom_properties=self.custom_props,
         )
-        # Create mail_address entities
-        for x in range(0, 3):
-            builder.create_email_address(
-                builder.summary["email_addresses"][f"email_address_{x}"]
-            )
         # Pass the email-message to the create function and retrieve it from the bundle
         builder.create_email_message(builder.summary["emails"]["email_0"])
         result = builder.bundle[-1]
@@ -311,7 +320,10 @@ class TestBuilder:
             ]
         )
         # Run tests
-        assert len(builder.bundle) == 4, "The bundle's length should be equal to 4"
+        assert (
+            len(builder.relationships) == 6
+        ), "The relationships array's length should be equal to 6"
+        assert len(builder.bundle) == 6, "The bundle's length should be equal to 6"
         assert expected.is_multipart is True, "is_multipart property should match"
         self.default_test(expected, result)
         assert (
@@ -337,9 +349,9 @@ class TestBuilder:
         )
         # Pass the IPv4 address to the create function and retrieve it from the bundle
         builder.create_ip(builder.summary["ip_addresses"]["ip_address_0"])
-        result = builder.bundle[0]
+        result = builder.bundle[1]
         # Run tests
-        assert len(builder.bundle) == 1, "The bundle's length should be equal to 1"
+        assert len(builder.bundle) == 2, "The bundle's length should be equal to 2"
         assert expected.value == result.value, "The value of the url should match"
         self.default_test(expected, result)
         # Test invalid IP
@@ -347,9 +359,9 @@ class TestBuilder:
             builder.create_ip(builder.summary["ip_addresses"]["ip_address_2"])
         # Test to create a resolve-to between an ip-addr and a domain
         builder.create_domain(builder.summary["domains"]["domain_0"])
-        domain = builder.bundle[1]
+        domain = builder.bundle[2]
         builder.create_ip(builder.summary["ip_addresses"]["ip_address_1"])
-        ip_addr = builder.bundle[2]
+        ip_addr = builder.bundle[3]
         # A resolve-to relationship should exist in the relationship array
         relation = next(
             x
@@ -392,9 +404,9 @@ class TestBuilder:
         builder.create_xopenctitext(
             builder.summary.get("static_data").get("static_data_0")
         )
-        result = builder.bundle[0]
+        result = builder.bundle[1]
         # Run tests
-        assert len(builder.bundle) == 1, "The bundle's length should be equal to 1"
+        assert len(builder.bundle) == 2, "The bundle's length should be equal to 2"
         assert json.loads(expected.value) == json.loads(
             result.value
         ), "The value of the raw text should match"
@@ -440,8 +452,9 @@ class TestBuilder:
                 yara_rule,
             )
         # Retrieve the result in the bundle
-        result = builder.bundle[0]
+        result = builder.bundle[1]
         # Run tests
+        assert len(builder.bundle) == 3, "The bundle's length should be equal to 3"
         assert (
             expected.valid_from == result.valid_from
         ), "valid_from property should match"
@@ -480,7 +493,7 @@ class TestBuilder:
                 "VMRay: sample to IOC" == relation.description
             ), "Description property should match"
             assert (
-                builder.sample_id == relation.source_ref
+                builder.sample[1].id == relation.source_ref
             ), "source_ref property should match"
             assert (
                 RelationshipType.RELATED.value == relation.relationship_type
@@ -490,15 +503,17 @@ class TestBuilder:
         # Create a new builder with an email analysis
         fake_builder = VMRAYBuilder(self.author, False, mail_analysis, self.helper)
         # Fill up the bundle
-        fake_builder.create_file(fake_builder.summary["files"]["file_1"])
-        fake_builder.create_file(fake_builder.summary["files"]["file_2"])
         fake_builder.create_domain(fake_builder.summary["domains"]["domain_0"])
         fake_builder.create_domain(fake_builder.summary["domains"]["domain_1"])
-        for x in range(0, 3):
-            fake_builder.create_email_address(
-                builder.summary["email_addresses"][f"email_address_{x}"]
-            )
-        fake_builder.create_email_message(fake_builder.summary["emails"]["email_0"])
+        fake_builder.create_file(fake_builder.summary["files"]["file_1"])
+        fake_builder.create_file(fake_builder.summary["files"]["file_2"])
+        for x in range(0, 5):
+            try:
+                fake_builder.create_email_address(
+                    fake_builder.summary["email_addresses"][f"email_address_{x}"]
+                )
+            except:
+                continue
         # Create relationships
         for ref in fake_builder.relationships:
             fake_builder.create_relationship(ref)
@@ -509,20 +524,21 @@ class TestBuilder:
                 relation, Relationship
             ), "Return type should be a relationship"
             assert (
-                fake_builder.sample_id == relation.source_ref
+                fake_builder.sample[1].id == relation.source_ref
             ), "source_ref property should match"
             assert (
                 RelationshipType.RELATED.value == relation.relationship_type
             ), "relationship_type should match"
-        # The last relations created should have a different description (email attachment)
-        assert (
-            "Email attachment" == relationships[-1].description
-        ), "Description should match"
-        assert (
-            "Email attachment" == relationships[-2].description
-        ), "Description should match"
+            if "file--" in relation.description:
+                # The relationships between the email message and the attachements(files) should have a different description
+                assert (
+                    "Email attachment" == relationships[3].description
+                ), "Description should match"
+                assert (
+                    "Email attachment" == relationships[4].description
+                ), "Description should match"
         # Check for relationships number
-        assert len(relationships) == 9, "Relationships number should match 9"
+        assert len(relationships) == 8, "Relationships number should match 8"
 
     def test_create_report(self, file_analysis, none_analysis):
         """
@@ -575,7 +591,9 @@ class TestBuilder:
         assert set(expected.description) == set(
             result.description
         ), "Description should be extracted from vti field correctly"
-        assert expected.labels == result.labels, "Labels should be equals"
+        assert len(expected.labels) == len(result.labels)
+        assert set(expected.labels) == set(result.labels)
+        # assert expected.labels == result.labels, "Labels should be equals"
         assert expected.name == result.name, "VMRay analysis ID should match"
         assert expected.published == result.published, "Published date should be equal"
         assert (
@@ -637,7 +655,7 @@ class TestBuilder:
         bundle = builder.create_bundle()
         # Run tests
         assert isinstance(bundle, Bundle), "Return type should be a bundle"
-        assert len(bundle.objects) == 11, "The bundle's length should be equal to 11"
+        assert len(bundle.objects) == 12, "The bundle's length should be equal to 12"
         # Count object by type and compare according to the expected value
         stix_expected = {
             "identity": 0,
@@ -654,7 +672,7 @@ class TestBuilder:
         assert stix_expected == {
             "identity": 1,
             "marking-definition": 1,
-            "file": 1,
+            "file": 2,
             "domain-name": 2,
             "x-opencti-text": 1,
             "relationship": 4,
@@ -697,6 +715,43 @@ class TestBuilder:
         )
         assert domain_expected_01 == builder.get_from_bundle(
             "domain-name", domain_expected_01.id, "id"
+        )
+
+    def test_duplicate_process(self, mail_analysis):
+        """
+        In some cases, entities are processed twice, we want to make sure we don't have
+        duplicate in the relationships
+        """
+        builder = VMRAYBuilder(self.author, False, mail_analysis, self.helper)
+        # At this point, the bundle should contains some entities
+        assert 6 == len(builder.bundle)
+        assert 1 == len(
+            [
+                obj
+                for obj in builder.bundle
+                if obj.type == EntityType.EMAIL_MESSAGE.value
+            ]
+        )
+        assert 2 == len(
+            [obj for obj in builder.bundle if obj.type == EntityType.FILE.value]
+        )
+        assert 3 == len(
+            [obj for obj in builder.bundle if obj.type == EntityType.EMAIL_ADDR.value]
+        )
+        # The relationship should not have been process for email-address
+        assert 2 == len(builder.relationships)
+        # Process the email_addresses in the summary
+        for x in range(0, 3):
+            builder.create_email_address(
+                builder.summary["email_addresses"][f"email_address_{x}"]
+            )
+        assert 5 == len(builder.relationships)
+        assert 3 == len(
+            [
+                rel
+                for rel in builder.relationships
+                if EntityType.EMAIL_ADDR.value in rel.target
+            ]
         )
 
     @classmethod
