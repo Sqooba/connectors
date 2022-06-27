@@ -134,9 +134,9 @@ class YaraFetcher:
 
         if existing_rule is not None:
             return existing_rule
-        else:
-            self.helper.log_warning(f"No YARA rule for rule {rule_key}")
-            return None
+
+        self.helper.log_warning(f"No YARA rule for rule {rule_key}")
+        return None
 
     @staticmethod
     def get_rule_key(ruleset_id: str, rule_name: str) -> str:
