@@ -91,7 +91,7 @@ class VMRayConnector:
         )
 
         # If SHA found in the stixfile
-        if sha.get("hash"):
+        if sha and sha.get("hash"):
             self.helper.log_info(f"Retrieve entity with hash : {sha.get('hash')}")
             # Query ES
             res = self.client.search(sha.get("hash"), entity_type)
@@ -136,6 +136,12 @@ class VMRayConnector:
                     ]:
                         for key in builder.summary.get(sco["key"]):
                             try:
+                                # Control if the current item is not the sample
+                                if builder.sample and builder.sample[0] == key:
+                                    self.helper.log_info(
+                                        f"You're processing the sample ({key}), skipping"
+                                    )
+                                    continue
                                 # Create STIX SCO
                                 getattr(builder, sco["transform"])(
                                     builder.summary[sco["key"]][key]
@@ -187,7 +193,7 @@ class VMRayConnector:
                     # Process open-cti-text
                     if "static_data" in builder.summary:
                         for cti_text in builder.summary.get("static_data"):
-                            builder.create_xopenctitext(
+                            builder.create_text(
                                 builder.summary.get("static_data").get(cti_text)
                             )
                     else:
