@@ -2,8 +2,6 @@
 """VMRay connector RelationshipRef class."""
 
 from dataclasses import dataclass
-from typing import Optional
-
 from ..utils.constants import RelationshipType
 
 
@@ -27,12 +25,11 @@ class RelationshipRef:
 
     source: str
     target: str
-    relationship_type: Optional[str]
+    relationship_type: RelationshipType = RelationshipType.RELATED.value
     description: str = "VMRay: sample to IOC"
 
-    def __post_init__(self):
-        self.relationship_type = (
-            self.relationship_type
-            if self.relationship_type
-            else RelationshipType.RELATED.value
-        )
+    def __eq__(self, other):
+        return (self.source, self.target) == (other.source, other.target)
+
+    def __hash__(self):
+        return hash((self.source, self.target))
