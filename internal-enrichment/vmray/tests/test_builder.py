@@ -26,7 +26,7 @@ from stix2 import (
 
 sys.path.append("..")
 from src.vmray.builder import VMRAYBuilder
-from src.vmray.models.open_cti_text import OpenCtiText
+from src.vmray.models.text import Text 
 from src.vmray.utils.constants import RelationshipType, EntityType
 
 
@@ -387,13 +387,13 @@ class TestBuilder:
         ]
         assert relation is not None, "Relation should not be None"
 
-    def test_create_openctitext(self, file_analysis):
+    def test_create_text(self, file_analysis):
         """
-        Test create_openctitext function, the result should be equal to the stix_expected variable's field
+        Test create_text function, the result should be equal to the stix_expected variable's field
         """
         builder = VMRAYBuilder(self.author, False, file_analysis, self.helper)
         # Expected object
-        expected = OpenCtiText(
+        expected = Text(
             value='{"office": {"Test01": "TestValue01", "Test02": "TestValue02"}, "pe": {"basic_info": {"Test00": "TestValue00"}}}',
             object_marking_refs=[
                 "marking-definition--f88d31f6-486f-44da-b317-01333bde0b82"
@@ -401,7 +401,7 @@ class TestBuilder:
             custom_properties=self.custom_props,
         )
         # Pass the text object to the create function and retrieve it from the bundle
-        builder.create_xopenctitext(
+        builder.create_text(
             builder.summary.get("static_data").get("static_data_0")
         )
         result = builder.bundle[1]
@@ -411,10 +411,10 @@ class TestBuilder:
             result.value
         ), "The value of the raw text should match"
         self.default_test(expected, result)
-        # Test create_xopenctitext with empty value
+        # Test create_text with empty value
         assert (
-            builder.create_xopenctitext({"office": {}, "pe": None}) is None
-        ), "Wrong values passed to OpenCtiText should return None"
+            builder.create_text({"office": {}, "pe": None}) is None
+        ), "Wrong values passed to Text should return None"
 
     def test_create_yara(self, file_analysis):
         """
@@ -643,7 +643,7 @@ class TestBuilder:
         builder.create_file(builder.summary["files"]["file_1"])
         builder.create_domain(builder.summary["domains"]["domain_0"])
         builder.create_domain(builder.summary["domains"]["domain_1"])
-        builder.create_xopenctitext(
+        builder.create_text(
             builder.summary.get("static_data").get("static_data_0")
         )
         # Create relationship
@@ -662,7 +662,7 @@ class TestBuilder:
             "marking-definition": 0,
             "file": 0,
             "domain-name": 0,
-            "x-opencti-text": 0,
+            "text": 0,
             "relationship": 0,
             "report": 0,
         }
@@ -674,7 +674,7 @@ class TestBuilder:
             "marking-definition": 1,
             "file": 2,
             "domain-name": 2,
-            "x-opencti-text": 1,
+            "text": 1,
             "relationship": 4,
             "report": 1,
         }, "stix_expected should match"
