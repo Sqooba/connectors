@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """VirusTotal enrichment module."""
-import asyncio
 import json
 from pathlib import Path
+from time import sleep
 
 import stix2
 import yaml
@@ -70,34 +70,24 @@ class VirusTotalConnector:
             ["virustotal", "file_upload_unseen_artifacts"],
             config,
         )
+        self.file_wait_for_artifact_analysis_completion = get_config_variable(
+            "VIRUSTOTAL_FILE_WAIT_FOR_ARTIFACT_ANALYSIS_COMPLETION",
+            ["virustotal", "file_wait_for_artifact_analysis_completion"],
+            config,
+        )
         self.file_indicator_config = IndicatorConfig.load_indicator_config(
             config, "FILE"
         )
 
         # IP specific settings
-        self.ip_add_relationships = get_config_variable(
-            "VIRUSTOTAL_IP_ADD_RELATIONSHIPS",
-            ["virustotal", "ip_add_relationships"],
-            config,
-        )
         self.ip_indicator_config = IndicatorConfig.load_indicator_config(config, "IP")
 
         # Domain specific settings
-        self.domain_add_relationships = get_config_variable(
-            "VIRUSTOTAL_DOMAIN_ADD_RELATIONSHIPS",
-            ["virustotal", "domain_add_relationships"],
-            config,
-        )
         self.domain_indicator_config = IndicatorConfig.load_indicator_config(
             config, "DOMAIN"
         )
 
         # Url specific settings
-        self.url_upload_unseen = get_config_variable(
-            "VIRUSTOTAL_URL_UPLOAD_UNSEEN",
-            ["virustotal", "url_upload_unseen"],
-            config,
-        )
         self.url_indicator_config = IndicatorConfig.load_indicator_config(config, "URL")
 
     def _retrieve_yara_ruleset(self, ruleset_id: str) -> dict:
@@ -121,7 +111,7 @@ class VirusTotalConnector:
             self.yara_cache[ruleset_id] = ruleset
         return ruleset
 
-    async def _process_file(self, observable):
+    def _process_file(self, observable):
         json_data = self.client.get_file_info(observable["observable_value"])
         assert json_data
         if (
@@ -136,7 +126,7 @@ class VirusTotalConnector:
             # Larger files can sometimes take a few seconds to propogate through the system and be added to the observable
             # It appears to be about 1 second for every 30-50MB
             if not len(observable["importFiles"]):
-                await asyncio.sleep(5)
+                sleep(5)
                 observable = self.helper.api.stix_cyber_observable.read(
                     id=observable["id"]
                 )
@@ -162,14 +152,19 @@ class VirusTotalConnector:
                 raise ValueError(
                     f"[VirusTotal] Error occurred uploading artifact to VirusTotal: {err}"
                 )
-            try:
-                await self.client.check_upload_status(
-                    "artifact", observable["observable_value"], analysis_id
-                )
-            except Exception as err:
-                raise ValueError(
-                    f"[VirusTotal] Error occurred while waiting for VirusTotal to analyze artifact: {err}"
-                )
+            if self.file_wait_for_artifact_analysis_completion:
+                try:
+                    self.client.check_upload_status(
+                        observable["observable_value"], analysis_id
+                    )
+                except Exception as err:
+                    raise ValueError(
+                        f"[VirusTotal] Error occurred while waiting for VirusTotal to analyze artifact: {err}"
+                    )
+            else:
+                message = f"{observable['observable_value']} was an unseen artifact submitted for analysis but connector skipping waiting for analysis completion. Enrichment will likely fail in next step but can be rerun later with success. Change configuration setting if you would like the connector to wait for artifact analysis completion"
+                self.helper.api.work.to_processed(self.helper.work_id, message)
+                self.helper.log_debug(message)
             json_data = self.client.get_file_info(observable["observable_value"])
             assert json_data
         if "error" in json_data:
@@ -240,9 +235,8 @@ class VirusTotalConnector:
             json_data["data"],
         )
 
-        if self.ip_add_relationships:
-            builder.create_asn_belongs_to()
-            builder.create_location_located_at()
+        builder.create_asn_belongs_to()
+        builder.create_location_located_at()
 
         builder.create_indicator_based_on(
             self.ip_indicator_config,
@@ -267,18 +261,17 @@ class VirusTotalConnector:
             json_data["data"],
         )
 
-        if self.domain_add_relationships:
-            # Create IPv4 address observables for each A record
-            # and a Relationship between them and the observable.
-            for ip in [
-                r["value"]
-                for r in json_data["data"]["attributes"]["last_dns_records"]
-                if r["type"] == "A"
-            ]:
-                self.helper.log_debug(
-                    f'[VirusTotal] adding ip {ip} to domain {observable["observable_value"]}'
-                )
-                builder.create_ip_resolves_to(ip)
+        # Create IPv4 address observables for each A record
+        # and a Relationship between them and the observable.
+        for ip in [
+            r["value"]
+            for r in json_data["data"]["attributes"]["last_dns_records"]
+            if r["type"] == "A"
+        ]:
+            self.helper.log_debug(
+                f'[VirusTotal] adding ip {ip} to domain {observable["observable_value"]}'
+            )
+            builder.create_ip_resolves_to(ip)
 
         builder.create_indicator_based_on(
             self.domain_indicator_config,
@@ -287,34 +280,9 @@ class VirusTotalConnector:
         builder.create_notes()
         return builder.send_bundle()
 
-    async def _process_url(self, observable):
+    def _process_url(self, observable):
         json_data = self.client.get_url_info(observable["observable_value"])
         assert json_data
-        if (
-            "error" in json_data
-            and json_data["error"]["code"] == "NotFoundError"
-            and self.url_upload_unseen
-        ):
-            message = f"The URL {observable['observable_value']} was not found in VirusTotal repositories. Beginning upload and analysis"
-            self.helper.api.work.to_received(self.helper.work_id, message)
-            self.helper.log_debug(message)
-            try:
-                analysis_id = self.client.upload_url(observable["observable_value"])
-            except Exception as err:
-                raise ValueError(
-                    f"[VirusTotal] Error occurred uploading URL to VirusTotal: {err}"
-                )
-            try:
-                await self.client.check_upload_status(
-                    "URL", observable["observable_value"], analysis_id
-                )
-            except Exception as err:
-                raise ValueError(
-                    f"[VirusTotal] Error occurred while waiting for VirusTotal to analyze URL: {err}"
-                )
-            json_data = self.client.get_url_info(observable["observable_value"])
-            assert json_data
-        print(json_data, flush=True)
         if "error" in json_data:
             raise ValueError(json_data["error"]["message"])
         if "data" not in json_data or "attributes" not in json_data["data"]:
@@ -335,9 +303,9 @@ class VirusTotalConnector:
         builder.create_notes()
         return builder.send_bundle()
 
-    async def _process_message(self, data):
-        self.helper.metric_inc("run_count")
-        self.helper.metric_state("running")
+    def _process_message(self, data):
+        self.helper.metric.inc("run_count")
+        self.helper.metric.state("running")
         entity_id = data["entity_id"]
         observable = self.helper.api.stix_cyber_observable.read(id=entity_id)
         if observable is None:
@@ -362,13 +330,13 @@ class VirusTotalConnector:
         )
         match observable["entity_type"]:
             case "StixFile" | "Artifact":
-                return await self._process_file(observable)
+                return self._process_file(observable)
             case "IPv4-Addr":
                 return self._process_ip(observable)
             case "Domain-Name":
                 return self._process_domain(observable)
             case "Url":
-                return await self._process_url(observable)
+                return self._process_url(observable)
             case _:
                 raise ValueError(
                     f'{observable["entity_type"]} is not a supported entity type.'
