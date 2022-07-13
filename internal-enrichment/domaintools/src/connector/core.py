@@ -62,7 +62,7 @@ class DomainToolsConnector:
         try:
             _ = self.api.account_information()
         except domaintools.exceptions.NotAuthorizedException as e:
-            self.helper.metric_inc("error_count")
+            self.helper.metric.inc("error_count")
             self.helper.log_error(f"Initialization of the API failed: {e}")
 
         self.author = Identity(
@@ -76,7 +76,7 @@ class DomainToolsConnector:
             confidence=self.helper.connect_confidence_level,
         )
 
-        self.helper.metric_state("idle")
+        self.helper.metric.state("idle")
 
     def _enrich_domaintools(self, builder: DtBuilder, observable: dict) -> str:
         """
@@ -171,7 +171,7 @@ class DomainToolsConnector:
                 for values in entry.get(category, ()):
                     if (domain := values["domain"]["value"]) != entry["domain"]:
                         if not validators.domain(domain):
-                            self.helper.metric_inc("error_count")
+                            self.helper.metric.inc("error_count")
                             self.helper.log_warning(
                                 f"[DomainTools] domain {domain} is not correctly "
                                 "formatted. Skipping."
@@ -258,8 +258,8 @@ class DomainToolsConnector:
         return "Observable not found on DomainTools."
 
     def _process_file(self, observable):
-        self.helper.metric_state("running")
-        self.helper.metric_inc("run_count")
+        self.helper.metric.state("running")
+        self.helper.metric.inc("run_count")
 
         builder = DtBuilder(self.helper, self.author)
 
