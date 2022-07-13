@@ -66,15 +66,15 @@ class DTLookupConnector:
         )
 
         self.client = EsClient(endpoint=elasticsearch_url, index=elasticsearch_index)
-        self.helper.metric_state("idle")
+        self.helper.metric.state("idle")
 
     def _process_file(self, observable):
         entity_type = EntityType(observable["entity_type"])
         res = self.client.search(observable["observable_value"], entity_type)
 
         if res["hits"]["total"]["value"] > 0:
-            self.helper.metric_state("running")
-            self.helper.metric_inc("run_count")
+            self.helper.metric.state("running")
+            self.helper.metric.inc("run_count")
 
             matches = [json.loads(i["_source"]["raw"]) for i in res["hits"]["hits"]]
             for raw in matches:
@@ -88,7 +88,7 @@ class DTLookupConnector:
                             "observable_value"
                         ]:
                             if not validators.domain(server):
-                                self.helper.metric_inc("error_count")
+                                self.helper.metric.inc("error_count")
                                 self.helper.log_warning(
                                     f"[DomainTools] domain {server} is not correctly "
                                     "formatted. Skipping."
@@ -112,7 +112,7 @@ class DTLookupConnector:
                 # Redirects (red)
                 if red := raw.get("red"):
                     if not validators.domain(red):
-                        self.helper.metric_inc("error_count")
+                        self.helper.metric.inc("error_count")
                         self.helper.log_warning(
                             f"[DomainTools] domain {red} is not correctly formatted. Skipping."
                         )
@@ -140,7 +140,7 @@ class DTLookupConnector:
                 for category, description in EMAILS_FIELD.items():
                     for email in raw.get(category, ()):
                         if not validators.email(email):
-                            self.helper.metric_inc("error_count")
+                            self.helper.metric.inc("error_count")
                             self.helper.log_warning(
                                 f"[DomainTools] email {email} is not correctly formatted. Skipping."
                             )
@@ -184,10 +184,10 @@ class DTLookupConnector:
                 self.helper.log_info(
                     f"[DomainTools] inserted {len(builder.bundle)} entries."
                 )
-                self.helper.metric_state("idle")
+                self.helper.metric.state("idle")
                 return f"Observable found on DomainTools, {len(builder.bundle)} knowledge attached."
 
-        self.helper.metric_state("idle")
+        self.helper.metric.state("idle")
         self.helper.log_debug(f"[DomainTools] no result for {observable=}")
         return "Observable not found on DomainTools."
 

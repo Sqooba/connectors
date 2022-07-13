@@ -64,17 +64,17 @@ class YaraFetcher:
             return response.json()
         except requests.exceptions.HTTPError as errh:
             self.helper.log_error(f"[VMRay] Http error: {errh}")
-            self.helper.metric_inc("client_error_count")
+            self.helper.metric.inc("client_error_count")
         except requests.exceptions.ConnectionError as errc:
             self.helper.log_error(f"[VMRay] Error connecting: {errc}")
-            self.helper.metric_inc("client_error_count")
+            self.helper.metric.inc("client_error_count")
         except requests.exceptions.Timeout as errt:
             self.helper.log_error(f"[VMRay] Timeout error: {errt}")
-            self.helper.metric_inc("client_error_count")
+            self.helper.metric.inc("client_error_count")
         except requests.exceptions.RequestException as err:
             self.helper.log_error(f"[VMRay] Something else happened: {err}")
         except json.JSONDecodeError as err:
-            self.helper.metric_inc("client_error_count")
+            self.helper.metric.inc("client_error_count")
             self.helper.log_error(
                 f"[VMRay] Error decoding the json: {err} - {response.text}"
             )

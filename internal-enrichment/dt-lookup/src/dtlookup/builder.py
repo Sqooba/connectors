@@ -303,7 +303,7 @@ class DtBuilder:
 
         Note: `allow_custom` must be set to True in order to specify the author of an object.
         """
-        self.helper.metric_inc("record_send", 1 + len(self.bundle))
+        self.helper.metric.inc("record_send", 1 + len(self.bundle))
         self.helper.send_stix2_bundle(
             Bundle(objects=[self.author] + self.bundle, allow_custom=True).serialize()
         )
