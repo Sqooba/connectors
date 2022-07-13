@@ -376,5 +376,5 @@ class VirusTotalConnector:
 
     def start(self):
         """Start the main loop."""
-        self.helper.metric_state("idle")
+        self.helper.metric.state("idle")
         self.helper.listen(self._process_message)
