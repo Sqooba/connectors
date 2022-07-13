@@ -75,7 +75,7 @@ class VMRayConnector:
         self.client = EsClient(endpoint=elasticsearch_url, index=elasticsearch_index)
         self.yara_fetcher = YaraFetcher(self.helper, self.vmray_url, self.vmray_api_key)
 
-        self.helper.metric_state("idle")
+        self.helper.metric.state("idle")
 
     def _process_file(self, stix_file):
         # Set entity type
@@ -116,13 +116,13 @@ class VMRayConnector:
                             self.author, self.run_on_s, analysis, self.helper
                         )
                     except (KeyError, TypeError) as ex:
-                        self.helper.metric_inc("client_error_count")
+                        self.helper.metric.inc("client_error_count")
                         self.helper.log_info(
                             f"{ErrorMessage.INIT_ERROR.format('VMRay', 'builder')} : {ex}"
                         )
                         continue
                     except Exception as ex:
-                        self.helper.metric_inc("client_error_count")
+                        self.helper.metric.inc("client_error_count")
                         self.helper.log_info(
                             f"{ErrorMessage.INIT_ERROR.format('VMRay', 'builder')} : {ex}"
                         )
@@ -147,7 +147,7 @@ class VMRayConnector:
                                     builder.summary[sco["key"]][key]
                                 )
                             except Exception as ex:
-                                self.helper.metric_inc("client_error_count")
+                                self.helper.metric.inc("client_error_count")
                                 self.helper.log_error(
                                     f"{ErrorMessage.STIX_ERROR.format('VMRay', sco['key'])} : {ex}"
                                 )
@@ -185,7 +185,7 @@ class VMRayConnector:
                                     ruleset_id, ruleset_name, description, yara_rule
                                 )
                             except Exception as ex:
-                                self.helper.metric_inc("client_error_count")
+                                self.helper.metric.inc("client_error_count")
                                 self.helper.log_error(
                                     f"{ErrorMessage.STIX_ERROR.format('VMRay', 'Yara Indicator')} : {ex}"
                                 )
@@ -208,7 +208,7 @@ class VMRayConnector:
                             # Create STIX Relationship
                             builder.create_relationship(ref)
                         except Exception as ex:
-                            self.helper.metric_inc("client_error_count")
+                            self.helper.metric.inc("client_error_count")
                             self.helper.log_debug(ref)
                             self.helper.log_error(
                                 f"{ErrorMessage.STIX_ERROR.format('VMRay', 'Relationship')} : {ex}"
@@ -218,7 +218,7 @@ class VMRayConnector:
                         # Create STIX Report
                         builder.create_report(stix_file["standard_id"])
                     except Exception as ex:
-                        self.helper.metric_inc("client_error_count")
+                        self.helper.metric.inc("client_error_count")
                         self.helper.log_error(
                             f"{ErrorMessage.STIX_ERROR.format('VMRay', 'Report')} : {ex}"
                         )
@@ -229,7 +229,7 @@ class VMRayConnector:
                         # Create STIX Bundle
                         bundle = builder.create_bundle()
                     except Exception as ex:
-                        self.helper.metric_inc("client_error_count")
+                        self.helper.metric.inc("client_error_count")
                         self.helper.log_error(
                             f"{ErrorMessage.STIX_ERROR.format('VMRay', 'Bundle')} : {ex}"
                         )
@@ -242,15 +242,15 @@ class VMRayConnector:
                             f"Sending a bundle with : {len(bundle.objects)} entities"
                         )
                         attached_counter += len(bundle.objects)
-                        self.helper.metric_inc("record_send", 1 + len(bundle.objects))
+                        self.helper.metric.inc("record_send", 1 + len(bundle.objects))
                         self.helper.send_stix2_bundle(bundle.serialize())
                     except ValueError as ex:
-                        self.helper.metric_inc("client_error_count")
+                        self.helper.metric.inc("client_error_count")
                         self.helper.log_error(
                             f"{ErrorMessage.SEND_BUNDLE.format('VMRay')} : {ex}"
                         )
                     except Exception as ex:
-                        self.helper.metric_inc("client_error_count")
+                        self.helper.metric.inc("client_error_count")
                         self.helper.log_error(
                             f"{ErrorMessage.UNKNOW.format('VMRay', 'sending the bundle')} : {ex}"
                         )

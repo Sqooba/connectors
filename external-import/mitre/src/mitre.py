@@ -98,7 +98,7 @@ class Mitre:
             urllib.error.ContentTooShortError,
         ) as urllib_error:
             self.helper.log_error(f"Error retrieving url {url}: {urllib_error}")
-            self.helper.metric_inc("error_client_count")
+            self.helper.metric.inc("error_client_count")
         return None
 
     # Add confidence to every object in a bundle
@@ -142,8 +142,8 @@ class Mitre:
                 (timestamp - last_run) > ((int(self.mitre_interval) - 1) * 60 * 60 * 24)
             ):
                 self.helper.log_info("Connector will run!")
-                self.helper.metric_inc("run_count")
-                self.helper.metric_state("running")
+                self.helper.metric.inc("run_count")
+                self.helper.metric.state("running")
 
                 now = datetime.utcfromtimestamp(timestamp)
                 friendly_name = "MITRE run @ " + now.strftime("%Y-%m-%d %H:%M:%S")
@@ -205,7 +205,7 @@ class Mitre:
                 )
         except (KeyboardInterrupt, SystemExit):
             self.helper.log_info("Connector stop")
-            self.helper.metric_state("stopped")
+            self.helper.metric.state("stopped")
             sys.exit(0)
         except Exception as e:
             self.helper.log_error(str(e))
@@ -220,7 +220,7 @@ class Mitre:
             while True:
                 self.process_data()
                 # Set the state as `idle` before sleeping.
-                self.helper.metric_state("idle")
+                self.helper.metric.state("idle")
                 time.sleep(60)
 
     def send_bundle(self, work_id: str, stix_bundle: dict) -> None:
@@ -234,7 +234,7 @@ class Mitre:
         except Exception as e:
             self.helper.log_error(f"Error while sending bundle: {e}")
             if self.helper.metrics is not None:
-                self.helper.metric_inc("error_count")
+                self.helper.metric.inc("error_count")
 
 
 if __name__ == "__main__":
