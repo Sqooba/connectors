@@ -213,6 +213,7 @@ class PublicationImporter(BaseImporter):
         try:
             return bundle_builder.build()
         except STIXError as e:
+            self.helper.metric.inc("error_count")
             self._error(
                 "Failed to build publication bundle for '{0}' ({1}): {2}",
                 publication.name,

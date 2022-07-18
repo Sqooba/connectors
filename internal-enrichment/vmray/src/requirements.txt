@@ -1,0 +1,4 @@
+git+https://gitlab.king.zoo./sqooba/client-python@5.10.1-sqb-4.2.0#egg=pycti
+elasticsearch==7.15.1
+validators~=0.18.2
+plyara~=2.1.1
