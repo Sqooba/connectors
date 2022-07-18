@@ -1,0 +1,88 @@
+# Automatic build and push of OpenCTI connectors.
+
+#--------------------------------------------------------------------#
+#                            Setup                                   #
+#--------------------------------------------------------------------#
+variables:
+  DOCKER_HOST: tcp://docker:2376
+  DOCKER_TLS_CERTDIR: "/certs"
+  DOCKER_TLS_VERIFY: 0
+  DOCKER_CERT_PATH: "$DOCKER_TLS_CERTDIR/client"
+
+  IMAGE_REGISTRY: "sqooba-docker-dev.repo.king.zoo"
+
+services:
+  - name: metis-dev.repo.king.zoo/metis-external/docker-with-ca:20.10.14-dind
+    alias: docker
+
+before_script:
+  # Docker config
+  - mkdir -p $HOME/.docker
+  - echo $DOCKER_AUTH_CONFIG > $HOME/.docker/config.json
+
+stages:
+  - build
+  - promote
+
+#--------------------------------------------------------------------#
+#                           Connectors                               #
+#--------------------------------------------------------------------#
+# When a tag is pushed, all the connectors are build and uploaded to artifactory.
+
+# Connectors to build
+.parallel:
+  parallel:
+    matrix:
+      - CONNECTOR_PATH:
+        # external-import
+        - external-import/cve
+        - external-import/kaspersky
+        - external-import/malpedia
+        - external-import/misp
+        #- external-import/mitre # Merged into upstream
+        - external-import/riskiq
+        - external-import/valhalla
+        - external-import/virustotal-livehunt-notifications
+        # internal-import
+        - internal-enrichment/domaintools
+        - internal-enrichment/dt-lookup
+        # - internal-enrichment/rcatt
+        - internal-enrichment/virustotal
+        - internal-enrichment/vmray
+        # internal-export-file
+        - internal-export-file/export-report-pdf
+        # internal-import-file
+        - internal-import-file/import-file-stix
+
+.build-connector:
+  script:
+    - echo "Building ${IMAGE_REGISTRY}/opencti/connector-${CONNECTOR_PATH#*/}:${CI_COMMIT_TAG}"
+    - docker buildx build --pull -t "${IMAGE_REGISTRY}/opencti/connector-${CONNECTOR_PATH#*/}:${CI_COMMIT_TAG}" -f ${CONNECTOR_PATH}/Dockerfile .
+    - echo "Pushing ${IMAGE_REGISTRY}/opencti/connector-${CONNECTOR_PATH#*/}:${CI_COMMIT_TAG}"
+    - docker push "${IMAGE_REGISTRY}/opencti/connector-${CONNECTOR_PATH#*/}:${CI_COMMIT_TAG}"
+  stage: build
+
+docker-build:
+  image: metis-dev.repo.king.zoo/metis-external/docker-with-ca:20.10.14
+  stage: build
+  rules:
+    - if: '$CI_COMMIT_TAG =~ /^\d+\.\d+\.\d+-sqb-\d+\.\d+\.\d+(-rc\d+)?$/'
+  before_script:
+    - until docker info; do echo "Waiting for client certs" && sleep 1; done
+    # Auth in config is not working.
+    - docker login ${IMAGE_REGISTRY} -u ${DOCKER_REPO_USER} -p ${DOCKER_REPO_PASS}
+  script:
+    - !reference [.build-connector, script]
+  parallel: !reference [.parallel, parallel]
+
+
+docker-promote:
+  image: metis-dev.repo.king.zoo/metis/artifactory-promoter:v1.0.0
+  stage: promote
+  rules:
+    - if: '$CI_COMMIT_TAG =~ /^\d+\.\d+\.\d+-sqb-\d+\.\d+\.\d+(-rc\d+)?$/'
+  script:
+    - echo "Promoting opencti/connector-${CONNECTOR_PATH#*/}:${CI_COMMIT_TAG}"
+    - /artifactory-promoter -image "opencti/connector-${CONNECTOR_PATH#*/}:${CI_COMMIT_TAG}"
+  parallel: !reference [.parallel, parallel]
+

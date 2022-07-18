@@ -63,6 +63,7 @@ class KasperskyClient:
         """Initialize Kaspersky client."""
         self.helper = helper
         self.base_url = base_url if not base_url.endswith("/") else base_url[:-1]
+        self.metrics = metrics
 
         self.session = requests.Session()
         self.session.auth = (user, password)
