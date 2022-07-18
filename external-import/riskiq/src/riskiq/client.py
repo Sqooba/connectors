@@ -4,6 +4,7 @@ import datetime
 import json
 from typing import Any, Optional
 
+from pycti import OpenCTIConnectorHelper
 import requests
 from pycti import OpenCTIConnectorHelper
 from requests.adapters import HTTPAdapter
