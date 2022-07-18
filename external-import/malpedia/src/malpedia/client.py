@@ -2,9 +2,10 @@
 """OpenCTI Malpedia client module."""
 from typing import Any
 from urllib.parse import urljoin
+from typing import Any, Optional
 
-import requests
 from pycti import OpenCTIConnectorHelper
+import requests
 
 
 class MalpediaClient:
