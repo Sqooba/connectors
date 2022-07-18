@@ -2,12 +2,15 @@
 """OpenCTI Malpedia client module."""
 from typing import Any
 from urllib.parse import urljoin
+from typing import Any, Optional
 
-import requests
 from pycti import OpenCTIConnectorHelper
+import requests
 
 
 class MalpediaClient:
+    """Malpedia client."""
+
     _DEFAULT_API_URL = "https://malpedia.caad.fkie.fraunhofer.de/api/"
 
     def __init__(self, helper: OpenCTIConnectorHelper, api_key: str) -> None:
@@ -36,6 +39,7 @@ class MalpediaClient:
                 data = r.json()
         except requests.exceptions.RequestException as e:
             self.helper.log_error(f"error in malpedia query: {e}")
+            self.helper.metric.inc("client_error_count")
             return None
         return data
 
@@ -43,6 +47,7 @@ class MalpediaClient:
         response_json = self.query("check/apikey")
         if "Valid token" in response_json["detail"]:
             return True
+        return False
 
     def current_version(self) -> int:
         response_json = self.query("get/version")

@@ -336,6 +336,8 @@ class VirusTotalConnector:
         return builder.send_bundle()
 
     async def _process_message(self, data):
+        self.helper.metric.inc("run_count")
+        self.helper.metric.state("running")
         entity_id = data["entity_id"]
         observable = self.helper.api.stix_cyber_observable.read(id=entity_id)
         if observable is None:
@@ -374,4 +376,5 @@ class VirusTotalConnector:
 
     def start(self):
         """Start the main loop."""
+        self.helper.metric.state("idle")
         self.helper.listen(self._process_message)
