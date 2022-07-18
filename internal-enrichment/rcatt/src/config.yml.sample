@@ -1,0 +1,17 @@
+opencti:
+  url: 'http://localhost:8080'
+  token: 'ChangeMe'
+
+connector:
+  id: 'ChangeMe'
+  type: 'INTERNAL_ENRICHMENT'
+  name: 'ReportClassification'
+  scope: 'Report'
+  auto: false # Enable/disable auto-enrichment of observables
+  confidence_level: 50 # From 0 (Unknown) to 100 (Fully trusted)
+  log_level: 'info'
+  expose_metrics: false
+
+rcatt:
+  link_to_malware: true  # Set to true to link the attack-pattern to the malware of the report
+  link_to_intrusion_set: true # Set to true to link the attack-pattern to the intrusion set of the report
