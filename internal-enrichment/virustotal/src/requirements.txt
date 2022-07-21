@@ -1,3 +1,2 @@
-git+https://github.com/Sqooba/client-python@release#egg=pycti
+git+https://gitlab.king.zoo./sqooba/client-python@5.7.6-sqb-3.1.0#egg=pycti
 plyara~=2.1.1
-
