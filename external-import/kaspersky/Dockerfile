@@ -1,6 +1,13 @@
 # The base image.
-FROM python:3.11-alpine as base
+FROM docker-proxy.mirror.queen.zoo/python:3.11-alpine as base
 
+RUN  echo "http://mirror.queen.zoo./artifactory/dl-cdn-alpinelinux-org/v$(cat /etc/alpine-release | cut -d'.' -f1,2)/main" > /etc/apk/repositories && \
+     echo "http://mirror.queen.zoo./artifactory/dl-cdn-alpinelinux-org/v$(cat /etc/alpine-release | cut -d'.' -f1,2)/community" >> /etc/apk/repositories && \
+     apk update
+
+# Copy confs
+COPY pip.conf /root/.config/pip/pip.conf
+COPY netrc /root/.netrc
 
 # The Builder.
 FROM base as builder
@@ -15,11 +22,12 @@ RUN apk update && \
 
 # Setup the virtual environment.
 RUN python -m venv /venv && \
+    git config --global http.sslVerify false && \
     /venv/bin/pip install --upgrade pip && \
     /venv/bin/pip install wheel
 
 # Install Python dependencies.
-COPY src/requirements.txt ./
+COPY external-import/kaspersky/src/requirements.txt ./
 RUN /venv/bin/pip install --no-cache-dir -r requirements.txt
 
 
@@ -27,7 +35,7 @@ RUN /venv/bin/pip install --no-cache-dir -r requirements.txt
 FROM base
 
 # Copy the source and set the working directory.
-COPY src /opt/opencti-connector-kaspersky
+COPY external-import/kaspersky/src /opt/opencti-connector-kaspersky
 WORKDIR /opt/opencti-connector-kaspersky
 
 # Install OS dependencies.
@@ -39,6 +47,6 @@ RUN apk update && \
 COPY --from=builder /venv /venv
 
 # Entrypoint.
-COPY entrypoint.sh /
+COPY external-import/kaspersky/entrypoint.sh /
 RUN chmod +x /entrypoint.sh
 ENTRYPOINT ["/entrypoint.sh"]
