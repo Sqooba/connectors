@@ -1,2 +1,2 @@
-git+https://github.com/Sqooba/client-python@release#egg=pycti
+git+https://gitlab.king.zoo./sqooba/client-python@release#egg=pycti
 pydantic==1.8.2
