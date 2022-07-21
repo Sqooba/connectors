@@ -1,4 +1,4 @@
+git+https://gitlab.king.zoo./sqooba/client-python@5.5.2-sqb-9.3.0#egg=pycti
 elasticsearch==7.15.1
-git+https://github.com/Sqooba/client-python@release#egg=pycti
 validators~=0.18.2
 plyara~=2.1.1
