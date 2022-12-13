@@ -83,7 +83,6 @@ class VMRAYBuilder:
         # Use custom properties to set the author and the confidence level of the object.
         self.custom_props = {
             "x_opencti_created_by_ref": author["id"],
-            "x_metis_modified_on_s": run_on_s,
         }
 
         # Retrieve the sample
