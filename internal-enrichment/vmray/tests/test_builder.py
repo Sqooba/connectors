@@ -26,7 +26,7 @@ from stix2 import (
 
 sys.path.append("..")
 from src.vmray.builder import VMRAYBuilder
-from src.vmray.models.text import Text 
+from src.vmray.models.text import Text
 from src.vmray.utils.constants import RelationshipType, EntityType
 
 
@@ -72,7 +72,6 @@ class TestBuilder:
         # Initialize custom properties
         cls.custom_props = {
             "x_opencti_created_by_ref": cls.author["id"],
-            "x_metis_modified_on_s": False,
         }
 
     @pytest.fixture
@@ -778,9 +777,6 @@ class TestBuilder:
         assert (
             result.x_opencti_created_by_ref == expected.x_opencti_created_by_ref
         ), "x_opencti_created_by_ref property should match"
-        assert (
-            result.x_metis_modified_on_s == expected.x_metis_modified_on_s
-        ), "custom_properties property should match"
         assert (
             expected.object_marking_refs == result.object_marking_refs
         ), "object_marking_refs property should match"
