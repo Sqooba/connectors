@@ -41,7 +41,6 @@ class DtBuilder:
         # Use custom properties to set the author and the confidence level of the object.
         self.custom_props = {
             "x_opencti_created_by_ref": author["id"],
-            "x_metis_modified_on_s": run_on_s,
         }
         if score is not None:
             self.custom_props["x_opencti_score"] = score
@@ -148,7 +147,6 @@ class DtBuilder:
             created_by_ref=self.author,
             confidence=self.helper.connect_confidence_level,
             description=description,
-            custom_properties={"x_metis_modified_on_s": self.run_on_s},
         )
 
         self.bundle.append(domain_to_target)
@@ -176,7 +174,6 @@ class DtBuilder:
             created_by_ref=self.author,
             confidence=self.helper.connect_confidence_level,
             description=description,
-            custom_properties={"x_metis_modified_on_s": self.run_on_s},
         )
 
         self.bundle.append(rel)
@@ -210,7 +207,6 @@ class DtBuilder:
             created_by_ref=self.author,
             confidence=self.helper.connect_confidence_level,
             description=description,
-            custom_properties={"x_metis_modified_on_s": self.run_on_s},
         )
 
         self.bundle += (email, domain_to_email)
@@ -292,7 +288,6 @@ class DtBuilder:
             target_ref=auto_system.id,
             created_by_ref=self.author,
             confidence=self.helper.connect_confidence_level,
-            custom_properties={"x_metis_modified_on_s": self.run_on_s},
         )
 
         self.bundle += (auto_system, ip_to_as)
