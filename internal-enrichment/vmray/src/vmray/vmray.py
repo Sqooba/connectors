@@ -78,8 +78,6 @@ class VMRayConnector:
         self.helper.metric.state("idle")
 
     def _process_file(self, stix_file):
-        # Set entity type
-        entity_type = EntityType(stix_file["entity_type"])
 
         # Extract SHA256 from File object
         sha = next(
@@ -93,6 +91,10 @@ class VMRayConnector:
         # If SHA found in the stixfile
         if sha and sha.get("hash"):
             self.helper.log_info(f"Retrieve entity with hash : {sha.get('hash')}")
+
+            # Retrieve entity_type
+            entity_type = EntityType(stix_file["entity_type"])
+
             # Query ES
             res = self.client.search(sha.get("hash"), entity_type)
 
