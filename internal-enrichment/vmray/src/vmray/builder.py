@@ -1,17 +1,16 @@
 # -*- coding: utf-8 -*-
 """VMRay enrichment module builder."""
 
-import json
 import datetime
+import json
+from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
-from typing import Any, Union, List, Dict, Tuple, Set
-
-import validators
 import plyara
-
+import validators
 from pycti import OpenCTIConnectorHelper, StixCyberObservable
-
 from stix2 import (
+    TLP_AMBER,
+    URL,
     Bundle,
     DomainName,
     EmailAddress,
@@ -22,23 +21,22 @@ from stix2 import (
     IPv4Address,
     Relationship,
     Report,
-    TLP_AMBER,
-    URL,
 )
 
-from .models.text import Text
 from .models.relationship_ref import RelationshipRef
-from .utils.utils import deep_get, format_domain, format_email_address
+from .models.text import Text
 from .utils.constants import (
     BLACKLIST_DOMAIN,
+    CUSTOM_FIELDS,
     INVALID_DOMAIN,
-    STATIC_DATA_FIELD,
     SAMPLE_TYPE,
+    STATIC_DATA_FIELD,
     EntityType,
+    ErrorMessage,
     InfoMessage,
     RelationshipType,
-    ErrorMessage,
 )
+from .utils.utils import deep_get, format_domain, format_email_address, get_score
 
 
 class VMRAYBuilder:
@@ -82,7 +80,7 @@ class VMRAYBuilder:
 
         # Use custom properties to set the author and the confidence level of the object.
         self.custom_props = {
-            "x_opencti_created_by_ref": author["id"],
+            CUSTOM_FIELDS["CREATED_BY_REF"]: author["id"],
         }
 
         # Retrieve the sample
@@ -108,6 +106,7 @@ class VMRAYBuilder:
         """
         # Default values
         filename = None
+        score = {CUSTOM_FIELDS["SCORE"]: None}
 
         # Check for non-empty hash and hash with a length greater than 4 characters
         hashes = {
@@ -130,6 +129,13 @@ class VMRAYBuilder:
             # No filename found, use the hash
             filename = hashes.get("sha256")
 
+        # Try to get the verdict field and score it
+        if file.get("verdict"):
+            self.helper.log_debug(
+                InfoMessage.VERDICT_FOUND.format("FILE", file.get("verdict"))
+            )
+            score[CUSTOM_FIELDS["SCORE"]] = get_score(file.get("verdict"))
+
         sco_obj = File(
             hashes=hashes,
             type=EntityType.FILE.value,
@@ -138,7 +144,7 @@ class VMRAYBuilder:
             object_marking_refs=TLP_AMBER,
             mime_type=file.get("mime_type"),
             size=file.get("size"),
-            custom_properties=self.custom_props,
+            custom_properties={**self.custom_props, **score},
         )
 
         if self.sample and sco_obj.id != self.sample[1].id:
@@ -162,17 +168,26 @@ class VMRAYBuilder:
         ValueError
             * If the ip address value is invalid
         """
+        score = {CUSTOM_FIELDS["SCORE"]: None}
+
         if not validators.ipv4(ip_addr["ip_address"]):
             raise ValueError(
                 ErrorMessage.INVALID_VALUE.format("IP", ip_addr["ip_address"])
             )
+
+        # Try to get the verdict field and score it
+        if ip_addr.get("verdict"):
+            self.helper.log_debug(
+                InfoMessage.VERDICT_FOUND.format("IP-ADDRESS", ip_addr.get("verdict"))
+            )
+            score[CUSTOM_FIELDS["SCORE"]] = get_score(ip_addr.get("verdict"))
 
         sco_obj = IPv4Address(
             type=EntityType.IPV4_ADDR.value,
             spec_version=self._SPEC_VERSION,
             value=ip_addr.get("ip_address"),
             object_marking_refs=TLP_AMBER,
-            custom_properties=self.custom_props,
+            custom_properties={**self.custom_props, **score},
         )
 
         # Check for relation to domain (resolves-to)
@@ -216,15 +231,24 @@ class VMRAYBuilder:
         str:
             The id of the generated stix URL
         """
+        score = {CUSTOM_FIELDS["SCORE"]: None}
+
         if not validators.url(url["url"]):
             raise ValueError(ErrorMessage.INVALID_VALUE.format("URL", url["url"]))
+
+        # Try to get the verdict field and score it
+        if url.get("verdict"):
+            self.helper.log_debug(
+                InfoMessage.VERDICT_FOUND.format("URL", url.get("verdict"))
+            )
+            score[CUSTOM_FIELDS["SCORE"]] = get_score(url.get("verdict"))
 
         sco_obj = URL(
             value=url["url"],
             type=EntityType.URL.value,
             spec_version=self._SPEC_VERSION,
             object_marking_refs=TLP_AMBER,
-            custom_properties=self.custom_props,
+            custom_properties={**self.custom_props, **score},
         )
 
         if self.sample and sco_obj.id != self.sample[1].id:
@@ -256,6 +280,7 @@ class VMRAYBuilder:
         # Default values
         email_address = email.get("email_address")
         email_formatted = format_email_address(email_address)
+        score = {CUSTOM_FIELDS["SCORE"]: None}
 
         # If the email-address is not valid, raise a ValueError
         if email_formatted is None or not validators.email(email_formatted):
@@ -269,12 +294,19 @@ class VMRAYBuilder:
             )
         )
 
+        # Try to get the verdict field and score it
+        if email.get("verdict"):
+            self.helper.log_debug(
+                InfoMessage.VERDICT_FOUND.format("EMAIL", email.get("verdict"))
+            )
+            score[CUSTOM_FIELDS["SCORE"]] = get_score(email.get("verdict"))
+
         sco_obj = EmailAddress(
             value=email_formatted,
             type=EntityType.EMAIL_ADDR.value,
             spec_version=self._SPEC_VERSION,
             object_marking_refs=TLP_AMBER,
-            custom_properties=self.custom_props,
+            custom_properties={**self.custom_props, **score},
         )
 
         if self.get_from_bundle(EntityType.EMAIL_ADDR.value, sco_obj.id, "id") is None:
@@ -301,6 +333,7 @@ class VMRAYBuilder:
         # Default values
         from_ref = None
         to_refs = []
+        score = {CUSTOM_FIELDS["SCORE"]: None}
 
         # Check if each address exist in the email_addresses key of the summary
         for raw_email in self.summary.get("email_addresses").values():
@@ -325,6 +358,13 @@ class VMRAYBuilder:
                     )
                 )
 
+        # Try to get the verdict field and score it
+        if email.get("verdict"):
+            self.helper.log_debug(
+                InfoMessage.VERDICT_FOUND.format("EMAIL-MSG", email.get("verdict"))
+            )
+            score[CUSTOM_FIELDS["SCORE"]] = get_score(email.get("verdict"))
+
         sco_obj = EmailMessage(
             type=EntityType.EMAIL_MESSAGE.value,
             is_multipart=True,
@@ -333,7 +373,7 @@ class VMRAYBuilder:
             to_refs=to_refs,
             subject=email.get("subject"),
             object_marking_refs=TLP_AMBER,
-            custom_properties=self.custom_props,
+            custom_properties={**self.custom_props, **score},
         )
 
         # Check if each attachment exist in the files key of the summary
@@ -379,6 +419,7 @@ class VMRAYBuilder:
         # Default values
         domain_name = domain.get("domain")
         domain_formatted = format_domain(domain_name)
+        score = {CUSTOM_FIELDS["SCORE"]: None}
 
         # If the domain name is empty or not valid, raise a ValueError
         if (
@@ -397,12 +438,19 @@ class VMRAYBuilder:
             )
             return
 
+        # Try to get the verdict field and score it
+        if domain.get("verdict"):
+            self.helper.log_debug(
+                InfoMessage.VERDICT_FOUND.format("DOMAIN-NAME", domain.get("verdict"))
+            )
+            score[CUSTOM_FIELDS["SCORE"]] = get_score(domain.get("verdict"))
+
         sco_obj = DomainName(
             type=EntityType.DOMAIN_NAME.value,
             spec_version=self._SPEC_VERSION,
             value=domain_name,
             object_marking_refs=TLP_AMBER,
-            custom_properties=self.custom_props,
+            custom_properties={**self.custom_props, **score},
         )
 
         if self.sample:
@@ -541,7 +589,7 @@ class VMRAYBuilder:
         labels = set()
 
         # Generate Labels and description
-        if self.summary.get("classifications") is not None:
+        if self.summary.get("classifications"):
             self.helper.log_debug(
                 f"[REPORT] - Label {self.summary.get('classifications')} found in classifications"
             )
@@ -671,7 +719,7 @@ class VMRAYBuilder:
         # Return None if the stix is not found
         return None
 
-    def get_sample(self) -> Union[Tuple[str, Union[File, URL, EmailMessage]], None]:
+    def get_sample(self) -> Optional[tuple[None, Optional[Any]]]:
         """
         Create the root sample depending on the field "is_sample: bool".
         The type of sample that will be processed is either a file, an email or a url.
