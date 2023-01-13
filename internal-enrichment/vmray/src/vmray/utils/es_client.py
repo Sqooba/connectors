@@ -2,7 +2,9 @@
 """ElasticSearch client module."""
 
 from typing import Any, Dict
+
 from elasticsearch import Elasticsearch
+
 from .constants import EntityType
 
 # Custom type to simulate a JSON format.

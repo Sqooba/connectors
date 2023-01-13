@@ -262,7 +262,7 @@
                     "Re: \u041e\u0431\u043d\u043e\u0432\u043b\u0435\u043d\u043d\u044b\u0439 \u0442\u0435\u043b\u0435\u0444\u043e\u043d\u043d\u044b\u0439 \u0441\u043f\u0440\u0430\u0432\u043e\u0447\u043d\u0438\u043a 2021"
                 ],
                 "threat_names": [],
-                "verdict": "clean"
+                "verdict": "malicious"
             },
             "email_address_3": {
                 "_type": "email_address",
@@ -497,7 +497,7 @@
                 "ref_yara_matches": [],
                 "size": 820,
                 "threat_names": [],
-                "verdict": "clean",
+                "verdict": "None",
                 "verdict_reason_code": null,
                 "verdict_reason_description": null
             },
@@ -5027,7 +5027,7 @@
                     "embedded_in_file"
                 ],
                 "url": "https://www.documentcloud.org/documents/6497959-Boeing-Text-Messages.html",
-                "verdict": "clean"
+                "verdict": "suspicious"
             },
             "url_1": {
                 "_type": "url",
