@@ -1,14 +1,14 @@
 # -*- coding: utf-8 -*-
 """Yara fetcher client module."""
 import json
+from typing import Any, Dict, Optional
 
-from typing import Any, Optional, Dict
-import requests
 import plyara
 import plyara.utils
+import requests
 from pycti import OpenCTIConnectorHelper
-from urllib3.util import Retry
 from requests.adapters import HTTPAdapter
+from urllib3.util import Retry
 
 # Custom type to simulate a JSON format.
 JSONType = Dict[str, Any]
