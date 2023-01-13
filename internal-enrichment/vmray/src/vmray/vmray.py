@@ -1,18 +1,18 @@
 # pylint: disable=broad-except
 # -*- coding: utf-8 -*-
 """VMRay enrichment module."""
-
+import json
 from pathlib import Path
-import yaml
 
-from stix2 import Identity
+import yaml
 from pycti import OpenCTIConnectorHelper, get_config_variable
+from stix2 import Identity
 
 from .builder import VMRAYBuilder
+from .utils.constants import HASHES_TYPE, SCOS_FIELD, EntityType, ErrorMessage
 from .utils.es_client import EsClient
-from .utils.constants import EntityType, HASHES_TYPE, SCOS_FIELD, ErrorMessage
-from .utils.yara_fetcher import YaraFetcher
 from .utils.utils import deep_get
+from .utils.yara_fetcher import YaraFetcher
 
 
 class VMRayConnector:
@@ -78,6 +78,8 @@ class VMRayConnector:
         self.helper.metric.state("idle")
 
     def _process_file(self, stix_file):
+        # Set entity type
+        entity_type = EntityType(stix_file["entity_type"])
 
         # Extract SHA256 from File object
         sha = next(
@@ -90,12 +92,12 @@ class VMRayConnector:
 
         # If SHA found in the stixfile
         if sha and sha.get("hash"):
-            self.helper.log_info(f"Retrieve entity with hash : {sha.get('hash')}")
 
             # Retrieve entity_type
             entity_type = EntityType(stix_file["entity_type"])
 
             # Query ES
+            self.helper.log_info(f"Retrieve entity with hash : {sha.get('hash')}")
             res = self.client.search(sha.get("hash"), entity_type)
 
             # If the query returns at least one entity

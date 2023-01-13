@@ -36,6 +36,7 @@ class InfoMessage:
     )
     ANALYSIS_DATE_FOUND = "[{}] - Field offsetDateTime found, setting value {}"
     BLACKLISTED_VALUE = "[{}] - Value '{}' is blacklisted, operation aborted"
+    VERDICT_FOUND = "[{}] - verdict found with value {}"
 
 
 class EntityType(Enum):
@@ -96,9 +97,16 @@ SAMPLE_TYPE = {
     "EMAIL (MSG)": {EntityType.EMAIL_MESSAGE.value: SCOS_FIELD["EMAIL-MESSAGE"]},
 }
 
+VERDICTS = {"clean": 10, "suspicious": 80, "malicious": 100}
+
 STATIC_DATA_FIELD = {"office", "pe", "pdf"}
 
 INVALID_DOMAIN = {"www", "http", "https"}
+
+CUSTOM_FIELDS = {
+    "CREATED_BY_REF": "x_opencti_created_by_ref",
+    "SCORE": "x_opencti_score",
+}
 
 BLACKLIST_DOMAIN = {
     "mbkw.myonlineportal.net",
