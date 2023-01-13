@@ -2,11 +2,13 @@
 """Utils methods for VMRay Connector."""
 
 import re
-
 from functools import reduce
 from typing import Any, Union
 from urllib.parse import urlparse
+
 from stix2.base import _STIXBase
+
+from .constants import VERDICTS
 
 
 def deep_get(data: Union[dict, str], *keys, default: Any = None) -> Any:
@@ -79,3 +81,18 @@ def format_email_address(email: str) -> Union[str, None]:
     if match:
         return match.group(0)
     return None
+
+
+def get_score(verdict: str) -> int:
+    """
+    Compare the verdict and return a score accordingly. clean -> 10, suspicious -> 80, malicious -> 100.
+    Returns
+    -------
+    int:
+        The score assigned to the verdict
+    """
+    return (
+        VERDICTS.get(verdict.lower(), None)
+        if verdict and isinstance(verdict, str)
+        else None
+    )
