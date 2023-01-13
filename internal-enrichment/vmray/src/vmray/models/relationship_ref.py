@@ -2,6 +2,7 @@
 """VMRay connector RelationshipRef class."""
 
 from dataclasses import dataclass
+
 from ..utils.constants import RelationshipType
 
 

@@ -2,10 +2,16 @@
 """VMRay connector test file."""
 
 import sys
+
 import pytest
 
 sys.path.append("..")
-from src.vmray.utils.utils import deep_get, format_domain, format_email_address
+from src.vmray.utils.utils import (
+    deep_get,
+    format_domain,
+    format_email_address,
+    get_score,
+)
 
 
 class TestUtils:
@@ -77,3 +83,16 @@ class TestUtils:
         assert (
             result == expected
         ), f"The tested email-address {test_input} should be equal to {expected}"
+
+    @pytest.mark.parametrize(
+        "test_input,expected",
+        [("clean", 10), ("suspicious", 80), ("malicious", 100), ("unknown", None)],
+    )
+    def test_get_score(self, test_input, expected):
+        """
+        Test get_score function, the result should be equal to the compared values
+        """
+        result = get_score(test_input)
+        assert (
+            result == expected
+        ), f"The tested verdict {test_input} should be equal to {expected}"

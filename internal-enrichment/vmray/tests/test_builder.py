@@ -1,33 +1,32 @@
 # -*- coding: utf-8 -*-
 """VMRay connector test file."""
 
+import json
 import os
 import sys
-import json
-
 from pathlib import Path
 from unittest.mock import MagicMock, PropertyMock
-import pytest
 
+import pytest
 from stix2 import (
-    DomainName,
-    Identity,
     TLP_AMBER,
-    File,
     URL,
+    Bundle,
+    DomainName,
     EmailAddress,
     EmailMessage,
-    Report,
-    IPv4Address,
+    File,
+    Identity,
     Indicator,
+    IPv4Address,
     Relationship,
-    Bundle,
+    Report,
 )
 
 sys.path.append("..")
 from src.vmray.builder import VMRAYBuilder
 from src.vmray.models.text import Text
-from src.vmray.utils.constants import RelationshipType, EntityType
+from src.vmray.utils.constants import EntityType, RelationshipType
 
 
 class TestBuilder:
@@ -156,7 +155,7 @@ class TestBuilder:
             },
             name="uxhvqy.exe",
             object_marking_refs=TLP_AMBER,
-            custom_properties=self.custom_props,
+            custom_properties={**self.custom_props, **{"x_opencti_score": 10}},
         )
         # Pass the file to the create function and retrieve it from the bundle
         builder.create_file(builder.summary["files"]["file_0"])
@@ -187,6 +186,10 @@ class TestBuilder:
         assert (
             result.hashes.get("ssdeep") is None
         ), "The hashe value of the file should match"
+        # Test the score of the file_0, should be set to 10 (clean)
+        assert (
+            result.x_opencti_score is expected.x_opencti_score
+        ), "The score should match"
 
     def test_create_domain(self, file_analysis):
         """
@@ -199,7 +202,7 @@ class TestBuilder:
             value="www.documentcloud.org",
             spec_version="2.1",
             object_marking_refs=TLP_AMBER,
-            custom_properties=self.custom_props,
+            custom_properties={**self.custom_props, **{"x_opencti_score": 10}},
         )
         # Pass the domain to the create function and retrieve it from the bundle
         builder.create_domain(builder.summary["domains"]["domain_0"])
@@ -228,6 +231,10 @@ class TestBuilder:
         assert (
             builder.create_domain(builder.summary["domains"]["domain_2"]) is None
         ), "Blacklisted domain should resturn None"
+        # Test the score of the domain_0, should be set to 10 (clean)
+        assert (
+            result.x_opencti_score is expected.x_opencti_score
+        ), "The score should match"
 
     def test_create_url(self, file_analysis):
         """
@@ -240,7 +247,7 @@ class TestBuilder:
             type="url",
             spec_version="2.1",
             object_marking_refs=TLP_AMBER,
-            custom_properties=self.custom_props,
+            custom_properties={**self.custom_props, **{"x_opencti_score": 80}},
         )
         # Pass the url to the create function and retrieve it from the bundle
         builder.create_url(builder.summary["urls"]["url_0"])
@@ -253,6 +260,10 @@ class TestBuilder:
         with pytest.raises(ValueError):
             sample_invalid = builder.summary["urls"]["url_2"]
             builder.create_url(sample_invalid)
+        # Test the score of the url_0, should be set to 80 (malicious)
+        assert (
+            result.x_opencti_score is expected.x_opencti_score
+        ), "The score should match"
 
     def test_create_email_address(self, file_analysis):
         """
@@ -265,7 +276,7 @@ class TestBuilder:
             type="email-addr",
             spec_version="2.1",
             object_marking_refs=TLP_AMBER,
-            custom_properties=self.custom_props,
+            custom_properties={**self.custom_props, **{"x_opencti_score": 100}},
         )
         # Pass the email address to the create function and retrieve it from the bundle
         builder.create_email_address(
@@ -289,6 +300,10 @@ class TestBuilder:
         assert (
             result.id == address_bundle
         ), "Email address id should match, this entity has already been push in the bundle"
+        # Test the score of the email_address_2, should be set to 10 (clean)
+        assert (
+            result.x_opencti_score is expected.x_opencti_score
+        ), "The score should match"
 
     def test_create_email_message(self, file_analysis):
         """
@@ -301,7 +316,7 @@ class TestBuilder:
             spec_version="2.1",
             is_multipart=True,
             object_marking_refs=TLP_AMBER,
-            custom_properties=self.custom_props,
+            custom_properties={**self.custom_props, **{"x_opencti_score": 10}},
         )
         # Pass the email-message to the create function and retrieve it from the bundle
         builder.create_email_message(builder.summary["emails"]["email_0"])
@@ -332,6 +347,10 @@ class TestBuilder:
         assert [
             x.id for x in expected_recipients
         ] == result.to_refs, "Recipients property should match"
+        # Test the score of the email_address_2, should be set to 10 (clean)
+        assert (
+            result.x_opencti_score is expected.x_opencti_score
+        ), "The score should match"
 
     def test_create_ip(self, file_analysis):
         """
@@ -344,7 +363,7 @@ class TestBuilder:
             value="45.249.245.35",
             spec_version="2.1",
             object_marking_refs=TLP_AMBER,
-            custom_properties=self.custom_props,
+            custom_properties={**self.custom_props, **{"x_opencti_score": 10}},
         )
         # Pass the IPv4 address to the create function and retrieve it from the bundle
         builder.create_ip(builder.summary["ip_addresses"]["ip_address_0"])
@@ -385,6 +404,10 @@ class TestBuilder:
             and x.relationship_type == RelationshipType.RESOLVES.value
         ]
         assert relation is not None, "Relation should not be None"
+        # Test the score of the email_address_2, should be set to 10 (clean)
+        assert (
+            result.x_opencti_score is expected.x_opencti_score
+        ), "The score should match"
 
     def test_create_text(self, file_analysis):
         """
@@ -400,9 +423,7 @@ class TestBuilder:
             custom_properties=self.custom_props,
         )
         # Pass the text object to the create function and retrieve it from the bundle
-        builder.create_text(
-            builder.summary.get("static_data").get("static_data_0")
-        )
+        builder.create_text(builder.summary.get("static_data").get("static_data_0"))
         result = builder.bundle[1]
         # Run tests
         assert len(builder.bundle) == 2, "The bundle's length should be equal to 2"
@@ -642,9 +663,7 @@ class TestBuilder:
         builder.create_file(builder.summary["files"]["file_1"])
         builder.create_domain(builder.summary["domains"]["domain_0"])
         builder.create_domain(builder.summary["domains"]["domain_1"])
-        builder.create_text(
-            builder.summary.get("static_data").get("static_data_0")
-        )
+        builder.create_text(builder.summary.get("static_data").get("static_data_0"))
         # Create relationship
         for ref in builder.relationships:
             builder.create_relationship(ref)
