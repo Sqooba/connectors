@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 """RcAttConnector enrichment module."""
 import tempfile
-import time
 from pathlib import Path
 from typing import List, Tuple
 
@@ -39,12 +38,6 @@ class RcAttConnector:
             confidence=self.helper.connect_confidence_level,
         )
 
-        self.auto = get_config_variable(
-            "CONNECTOR_AUTO",
-            ["connector", "confidence_auto"],
-            config,
-            True,
-        )
         self.confidence_level = get_config_variable(
             "CONNECTOR_CONFIDENCE_LEVEL",
             ["connector", "confidence_level"],
@@ -96,11 +89,6 @@ class RcAttConnector:
                 "check the group of the connector user)"
             )
         self.helper.log_info(f"report={report}")
-
-        if self.auto and not report["importFiles"]:
-            self.helper.log_info("Waiting for potential files to be uploaded.")
-            time.sleep(30)
-
         if not report["importFiles"]:
             raise ValueError("Report does not have any pdf.")
 
@@ -175,7 +163,7 @@ class RcAttConnector:
             self.helper.api.report.add_stix_object_or_stix_relationship(
                 id=report_id, stixObjectOrStixRelationshipId=attack_pattern["id"]
             )
-            self.helper.metrics.inc("record_send", n=2)
+            self.helper.metric.inc("record_send", n=2)
             self.helper.log_debug(f"Attack pattern created: {attack_pattern}")
 
         return attacks
@@ -209,7 +197,7 @@ class RcAttConnector:
                     id=report_id,
                     stixObjectOrStixRelationshipId=rel["id"],
                 )
-                self.helper.metrics.inc("record_send", n=2)
+                self.helper.metric.inc("record_send", n=2)
                 self.helper.log_debug(f"Relationship to add: {rel}")
 
     def link_intrusion_sets_to_attack_patterns(
@@ -243,7 +231,7 @@ class RcAttConnector:
                     id=report_id,
                     stixObjectOrStixRelationshipId=rel["id"],
                 )
-                self.helper.metrics.inc("record_send", n=2)
+                self.helper.metric.inc("record_send", n=2)
                 self.helper.log_debug(f"Relationship to add: {rel}")
 
     def start(self):
