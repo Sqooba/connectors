@@ -78,6 +78,8 @@ class RcAttConnector:
             return ttps
 
     def _process_message(self, data):
+        self.helper.metric.inc("run_count")
+        self.helper.metric.state("running")
         self.helper.log_info(data)
         entity_id = data["entity_id"]
         report = self.helper.api.report.read(id=entity_id)
@@ -161,6 +163,7 @@ class RcAttConnector:
             self.helper.api.report.add_stix_object_or_stix_relationship(
                 id=report_id, stixObjectOrStixRelationshipId=attack_pattern["id"]
             )
+            self.helper.metrics.inc("record_send", n=2)
             self.helper.log_debug(f"Attack pattern created: {attack_pattern}")
 
         return attacks
@@ -194,6 +197,7 @@ class RcAttConnector:
                     id=report_id,
                     stixObjectOrStixRelationshipId=rel["id"],
                 )
+                self.helper.metrics.inc("record_send", n=2)
                 self.helper.log_debug(f"Relationship to add: {rel}")
 
     def link_intrusion_sets_to_attack_patterns(
@@ -227,6 +231,7 @@ class RcAttConnector:
                     id=report_id,
                     stixObjectOrStixRelationshipId=rel["id"],
                 )
+                self.helper.metrics.inc("record_send", n=2)
                 self.helper.log_debug(f"Relationship to add: {rel}")
 
     def start(self):
