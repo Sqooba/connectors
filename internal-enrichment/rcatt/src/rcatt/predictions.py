@@ -29,7 +29,7 @@ def predict(report_to_predict_file):
         data = filetoread.read()
         report_to_predict = prp.remove_u(data)
 
-    # load postprocessingand min-max confidence score for both tactics and techniques predictions
+    # load postprocessing and min-max confidence score for both tactics and techniques predictions
     parameters = joblib.load("classification_tools/data/configuration.joblib")
     min_prob_tactics = parameters[2][0]
     max_prob_tactics = parameters[2][1]
