@@ -10,6 +10,7 @@ class ErrorMessage:
     INVALID_VALUE = "[{}] - Value '{}' is not valid, operation aborted"
     INIT_ERROR = "[{}] - An error occurred during the {} initialization"
     STIX_ERROR = "[{}] - An error occurred while generating STIX entity of type {}"
+    YARA_PARSING = "[{}] An error occurred while trying to parse the yara rules"
     SEND_BUNDLE = "[{}] - An error occurred while sending the Bundle to the API"
     UNKNOW = "[{}] - An unknown error occurred while {}"
     ES_NOT_FOUND = (
