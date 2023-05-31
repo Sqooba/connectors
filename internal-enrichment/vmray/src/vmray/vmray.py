@@ -1,9 +1,7 @@
 # pylint: disable=broad-except
 # -*- coding: utf-8 -*-
 """VMRay enrichment module."""
-import json
 from pathlib import Path
-
 import yaml
 from pycti import OpenCTIConnectorHelper, get_config_variable
 from stix2 import Identity
@@ -78,8 +76,6 @@ class VMRayConnector:
         self.helper.metric.state("idle")
 
     def _process_file(self, stix_file):
-        # Set entity type
-        entity_type = EntityType(stix_file["entity_type"])
 
         # Extract SHA256 from File object
         sha = next(
@@ -168,11 +164,13 @@ class VMRayConnector:
                                 yara_data.get("rule_name") is not None
                                 and yara_data.get("ruleset_id") is not None
                             ):
+                                # Retrieve yara rule
                                 yara_rule = self.yara_fetcher.get_yara_rule(
                                     yara_data.get("ruleset_id"),
                                     yara_data.get("rule_name"),
                                 )
                                 self.helper.log_debug(f"YARA_RULE: {yara_rule}")
+
                             else:
                                 self.helper.log_error(
                                     "[VMRay] A key is missing (name or id) in the yara match "

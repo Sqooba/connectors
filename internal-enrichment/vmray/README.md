@@ -1,0 +1,36 @@
+# OpenCTI VMRay Connector
+
+This connector supports manual enrichment of observables using a sample as entry point.
+* [VMRay](https://www.vmray.com/)
+
+## Behavior
+
+This connector is used as a manual enrichment connector. 
+
+The process is as follows : 
+* Retrieve the ES record of the corresponding sample (the one being enriched).
+* Process the `summary_v2` in order to generate a bundle of STIX entities :
+* Push the bundle back to openCTI
+ 
+## Run the connector locally
+
+Use the config file `config.yaml` to customize the configuration of the connector.
+In order to run the connector locally, you need to port-forward the right resources. 
+
+The connectors depend on the following : 
+* OpenCti API
+* ES
+* RMQ
+
+Once all the ports are correctly routed, you can run the main from the `src` folder.
+```
+python main.py
+```
+
+## Run the tests
+To run the test, the package `pytest` must be installed on your machine.
+```
+$ cd vmray/tests
+$ pytest
+```
+
