@@ -9,44 +9,19 @@ RUN  echo "http://mirror.queen.zoo./artifactory/dl-cdn-alpinelinux-org/v$(cat /e
 COPY pip.conf /root/.config/pip/pip.conf
 COPY netrc /root/.netrc
 
-# The Builder.
-FROM base as builder
-
-# Set the working directory.
-WORKDIR /builder
-
-# Install OS dependencies.
-RUN apk update && \
-    apk --no-cache add build-base git libxml2-dev libxslt-dev && \
-    rm -rf /var/cache/apk/*
-
-# Setup the virtual environment.
-RUN python -m venv /venv && \
-    git config --global http.sslVerify false && \
-    /venv/bin/pip install --upgrade pip && \
-    /venv/bin/pip install wheel
-
-# Install Python dependencies.
-COPY external-import/kaspersky/src/requirements.txt ./
-RUN /venv/bin/pip install --no-cache-dir -r requirements.txt
-
-
-# The Connector.
-FROM base
-
-# Copy the source and set the working directory.
+# Copy the connector
 COPY external-import/kaspersky/src /opt/opencti-connector-kaspersky
-WORKDIR /opt/opencti-connector-kaspersky
 
-# Install OS dependencies.
-RUN apk update && \
-    apk --no-cache add libmagic libxml2 libxslt && \
-    rm -rf /var/cache/apk/*
+# Install Python modules
+# hadolint ignore=DL3003
+RUN apk --no-cache add git build-base libmagic libffi-dev libxml2-dev libxslt-dev && \
+    git config --global http.sslVerify false && \
+    cd /opt/opencti-connector-kaspersky && \
+    pip3 install --no-cache-dir -r requirements.txt && \
+    apk del git build-base
 
-# Copy the venv from the builder.
-COPY --from=builder /venv /venv
-
-# Entrypoint.
+# Expose and entrypoint
 COPY external-import/kaspersky/entrypoint.sh /
 RUN chmod +x /entrypoint.sh
 ENTRYPOINT ["/entrypoint.sh"]
+
