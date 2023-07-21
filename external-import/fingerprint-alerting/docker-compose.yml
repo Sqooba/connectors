@@ -1,0 +1,21 @@
+version: '3'
+services:
+  connector-riskiq:
+    image: opencti/connector-fingerprint-alerting:5.9.2
+    environment:
+      - OPENCTI_URL=http://localhost
+      - OPENCTI_TOKEN=ChangeMe
+      - CONNECTOR_ID=ChangeMe
+      - CONNECTOR_TYPE=EXTERNAL_IMPORT
+      - "CONNECTOR_NAME=Fingerprint Alerting"
+      - CONNECTOR_SCOPE=Incident
+      - CONNECTOR_CONFIDENCE_LEVEL=50 # From 0 (Unknown) to 100 (Fully trusted)
+      - CONNECTOR_LOG_LEVEL=info
+      - CONNECTOR_EXPOSE_METRICS=false
+      - FINGERPRINT_ALERTING_INTERVAL_SEC=3600
+      - FINGERPRINT_ALERTING_VIRUSTOTAL_API_KEY=ChangeMe
+      - FINGERPRINT_ALERTING_LABEL=c2-fingerprints
+      - FINGERPRINT_ALERTING_EXCLUDE=no-alert
+      - FINGERPRINT_ALERTING_CHECK_LAST_N_DAYS=7 # Check the reports created in the last N days for matches in VirusTotal
+      - FINGERPRINT_ALERTING_FIRST_SUBMISSION_N_DAYS=30 # Communicating files only take into account if first submission is less than N days
+    restart: always
