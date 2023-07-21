@@ -1,0 +1,21 @@
+opencti:
+  url: 'ChangeMe'
+  token: 'ChangeMe'
+
+connector:
+  id: 'ChangeMe'
+  type: 'EXTERNAL_IMPORT'
+  name: 'Fingerprint Alerting'
+  scope: 'Incident'
+  confidence_level: 50 # From 0 (Unknown) to 100 (Fully trusted)
+  create_indicator: False
+  update_existing_data: false
+  log_level: 'info'
+
+fingerprint_alerting:
+  virustotal_api_key: 'ChangeMe' # Private API Key
+  interval_sec: 300 # Time to wait in seconds between subsequent requests
+  label: 'c2-fingerprints' # Label for the reports to retrieve
+  exclude: 'no-alert' # Label to exclude
+  check_last_n_days: 7 # Check the IoCs created in the last N days for matches in VirusTotal
+  first_submission_n_days: 30 # Communicating files only take into account if first submission is less than N days
