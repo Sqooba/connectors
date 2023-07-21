@@ -36,6 +36,7 @@ stages:
       - CONNECTOR_PATH:
         # external-import
         - external-import/cve
+        - external-import/fingerprint-alerting
         - external-import/kaspersky
         - external-import/malpedia
         - external-import/misp
