@@ -2194,8 +2194,8 @@ class Misp:
 
         for tag in tags:
             # we take the tag as-is if it starts by a prefix stored in the keep_original_tags_as_label configuration
-            if any(map(lambda s: s.startswith(tag), self.keep_original_tags_as_label)):
-                opencti_tags.append(tag)
+            if any(map(lambda s: s.startswith(tag["name"]), self.keep_original_tags_as_label)):
+                opencti_tags.append(tag["name"])
 
             elif (
                 tag["name"] != "tlp:white"
