@@ -1,3 +1,4 @@
+blacklist_scos.yaml
 config.yml
 __pycache__
 logs

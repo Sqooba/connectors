@@ -60,6 +60,18 @@ class VMRayConnector:
             config,
         )
 
+        blacklist_file_path = get_config_variable(
+            "BLACKLIST_SCOS",
+            ["vmray", "blacklist_scos"],
+            config,
+        )
+
+        self.blacklist_scos = (
+            yaml.safe_load(open(blacklist_file_path, encoding="utf-8"))
+            if blacklist_file_path.is_file()
+            else {}
+        ) 
+
         self.author = Identity(
             name=self._DEFAULT_AUTHOR,
             identity_class="system",
@@ -107,6 +119,9 @@ class VMRayConnector:
 
                 # Count entity attached to the current bundle
                 attached_counter = 0
+
+                # Load the blacklist for IPs and domain
+
 
                 # Loop over each match
                 for analysis in matches:
