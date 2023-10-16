@@ -19,5 +19,5 @@ services:
       - VMRAY_API_KEY=ChangeMe
       - VMRAY_RUN_ON_S=false
       - VMRAY_BLACKLIST_ENABLED=true
-      - VMRAY_BLACKLIST_FILE=true
+      - VMRAY_BLACKLIST_FILE=ChangeMe
     restart: always
