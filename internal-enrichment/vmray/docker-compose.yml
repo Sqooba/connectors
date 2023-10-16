@@ -1,6 +1,6 @@
 version: '3'
 services:
-  connector-virustotal:
+  connector-vmray:
     image: opencti/connector-vmray:5.2.4-sqb-6.1.0
     environment:
       - OPENCTI_URL=http://localhost
@@ -18,4 +18,6 @@ services:
       - VMRAY_URL=ChangeMe
       - VMRAY_API_KEY=ChangeMe
       - VMRAY_RUN_ON_S=false
+      - VMRAY_BLACKLIST_ENABLED=true
+      - VMRAY_BLACKLIST_FILE=true
     restart: always

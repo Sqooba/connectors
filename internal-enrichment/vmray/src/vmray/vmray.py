@@ -60,9 +60,15 @@ class VMRayConnector:
             config,
         )
 
-        blacklist_file_path = get_config_variable(
-            "BLACKLIST_SCOS",
-            ["vmray", "blacklist_scos"],
+        self.blacklist_enabled = get_config_variable(
+            "BLACKLIST_ENABLED",
+            ["vmray", "blacklist_enabled"],
+            config,
+        )
+
+        blacklist_file_path = Path(__file__).parent.parent.resolve() / get_config_variable(
+            "BLACKLIST_FILE",
+            ["vmray", "blacklist_file"],
             config,
         )
 
@@ -70,7 +76,7 @@ class VMRayConnector:
             yaml.safe_load(open(blacklist_file_path, encoding="utf-8"))
             if blacklist_file_path.is_file()
             else {}
-        ) 
+        )
 
         self.author = Identity(
             name=self._DEFAULT_AUTHOR,
@@ -81,6 +87,11 @@ class VMRayConnector:
             " and static analysis with groundbreaking sandbox technology.",
             confidence=self.helper.connect_confidence_level,
         )
+
+        # If the blacklist feature is enabled, check the backlist file's integrity
+        if (self.blacklist_enabled and not self.blacklist_scos):
+            raise ValueError("Blacklist file is empty")
+
         # Open ES & Yara connections
         self.client = EsClient(endpoint=elasticsearch_url, index=elasticsearch_index)
         self.yara_fetcher = YaraFetcher(self.helper, self.vmray_url, self.vmray_api_key)
@@ -120,15 +131,12 @@ class VMRayConnector:
                 # Count entity attached to the current bundle
                 attached_counter = 0
 
-                # Load the blacklist for IPs and domain
-
-
                 # Loop over each match
                 for analysis in matches:
                     try:
                         # Initialize builder object
                         builder = VMRAYBuilder(
-                            self.author, self.run_on_s, analysis, self.helper
+                            self.author, self.run_on_s, analysis, self.helper, (self.blacklist_enabled, self.blacklist_scos)
                         )
                     except (KeyError, TypeError) as ex:
                         self.helper.metric.inc("client_error_count")
