@@ -168,7 +168,7 @@ class VMRAYBuilder:
         Raise
         -------
         ValueError
-            * If the ip address value is invalid or blacklisted
+            * If the ip address value is invalid
         """
         # Default values
         score = {CUSTOM_FIELDS["SCORE"]: None}
@@ -425,7 +425,7 @@ class VMRAYBuilder:
         Raise
         -------
         ValueError
-            * If the domain name value is invalid or blacklisted
+            * If the domain name value is invalid
         """
         # Default values
         domain_name = domain.get("domain")
