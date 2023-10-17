@@ -5,3 +5,4 @@ logs
 *.gql
 tmp/
 .pytest_cache/
+tests/resources/bundle.json

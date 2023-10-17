@@ -28,7 +28,7 @@ python main.py
 ```
 
 ## Run the tests
-To run the test, the packages `pytest` and `pytest-mock` must be installed on your machine.
+To run the test, the packages in the file `tests/requirements-text.txt` must be installed on your machine.
 ```
 $ cd vmray/tests
 $ pytest
