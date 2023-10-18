@@ -52,7 +52,7 @@ class VMRAYBuilder:
         run_on_s: bool,
         analysis: dict,
         helper: OpenCTIConnectorHelper,
-        blacklist: Tuple[bool, str]
+        blacklist: Tuple[bool, str],
     ):
         """Initialize VMRayBuilder."""
         self.author = author
@@ -175,17 +175,13 @@ class VMRAYBuilder:
         ip_address = ip_addr.get("ip_address")
 
         # If the ip address is blacklisted, return None
-        if(self.blacklist_enabled and self.match_blacklist("ip", ip_address)):
-           self.helper.log_info(
-                InfoMessage.BLACKLISTED_VALUE.format("IP", ip_address)
-            )
-           return
+        if self.blacklist_enabled and self.is_blacklisted("ip", ip_address):
+            self.helper.log_info(InfoMessage.BLACKLISTED_VALUE.format("IP", ip_address))
+            return
 
         if not validators.ipv4(ip_address):
-            raise ValueError(
-                ErrorMessage.INVALID_VALUE.format("IP", ip_address)
-            )
-        
+            raise ValueError(ErrorMessage.INVALID_VALUE.format("IP", ip_address))
+
         # Try to get the verdict field and score it
         if ip_addr.get("verdict"):
             self.helper.log_debug(
@@ -433,11 +429,11 @@ class VMRAYBuilder:
         score = {CUSTOM_FIELDS["SCORE"]: None}
 
         # If the domain name is blacklisted, return None
-        if(self.blacklist_enabled and self.match_blacklist("domain", domain_name)):
-           self.helper.log_info(
+        if self.blacklist_enabled and self.is_blacklisted("domain", domain_name):
+            self.helper.log_info(
                 InfoMessage.BLACKLISTED_VALUE.format("DOMAIN-NAME", domain_name)
             )
-           return
+            return
 
         # If the domain name is empty or not valid, raise a ValueError
         if (
@@ -772,18 +768,19 @@ class VMRAYBuilder:
         # Return None if no sample where found
         return None
 
-    def match_blacklist(self, key: str, sco: str) -> bool:
+    def is_blacklisted(self, key: str, sco: str) -> bool:
         """
         Check if the given string (`sco`) matches any pattern in the blacklist for the specified key (`key`).
-        
+
         Parameters:
         - key (str): The key corresponding to the type of data being checked against the blacklist.
         - sco (str): The string to check against the blacklisted items.
-        
+
         Returns:
         bool: True if there is a match in the blacklist, False otherwise.
 
         Note:
         If the specified key is not found in the blacklist or the blacklist is empty, the function returns False.
         """
-        return any(re.match(b, sco) for b in self.blacklist_scos.get(key, []))
+        regexes = self.blacklist_scos.get(key, [])
+        return any(re.match(r, sco) for r in regexes)

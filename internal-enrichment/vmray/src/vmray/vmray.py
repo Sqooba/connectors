@@ -66,7 +66,9 @@ class VMRayConnector:
             config,
         )
 
-        blacklist_file_path = Path(__file__).parent.parent.resolve() / get_config_variable(
+        blacklist_file_path = Path(
+            __file__
+        ).parent.parent.resolve() / get_config_variable(
             "BLACKLIST_FILE",
             ["vmray", "blacklist_file"],
             config,
@@ -89,7 +91,7 @@ class VMRayConnector:
         )
 
         # If the blacklist feature is enabled, check the backlist file's integrity
-        if (self.blacklist_enabled and not self.blacklist_scos):
+        if self.blacklist_enabled and not self.blacklist_scos:
             raise ValueError("Blacklist file is empty")
 
         # Open ES & Yara connections
@@ -136,7 +138,11 @@ class VMRayConnector:
                     try:
                         # Initialize builder object
                         builder = VMRAYBuilder(
-                            self.author, self.run_on_s, analysis, self.helper, (self.blacklist_enabled, self.blacklist_scos)
+                            self.author,
+                            self.run_on_s,
+                            analysis,
+                            self.helper,
+                            (self.blacklist_enabled, self.blacklist_scos),
                         )
                     except (KeyError, TypeError) as ex:
                         self.helper.metric.inc("client_error_count")
