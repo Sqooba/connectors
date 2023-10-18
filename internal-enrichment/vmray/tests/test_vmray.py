@@ -50,8 +50,12 @@ class TestVmray:
             cls.pyctiClient = mock_opencti_connector_helper
             cls.esClient = mock_es_client
             # Initialize the connector
-            test_config = Path(__file__).parent.parent.resolve() / "tests/resources/config.yml"
-            test_blacklist = Path(__file__).parent.parent.resolve() / "tests/resources/blacklist.yml"
+            test_config = (
+                Path(__file__).parent.parent.resolve() / "tests/resources/config.yml"
+            )
+            test_blacklist = (
+                Path(__file__).parent.parent.resolve() / "tests/resources/blacklist.yml"
+            )
             cls.connector = VMRayConnector(test_config, test_blacklist)
 
     @classmethod

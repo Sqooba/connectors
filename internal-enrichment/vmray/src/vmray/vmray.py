@@ -63,7 +63,7 @@ class VMRayConnector:
             config,
         )
 
-        if(blacklist_path is None):
+        if blacklist_path is None:
             blacklist_file_path = Path(
                 __file__
             ).parent.parent.resolve() / get_config_variable(
