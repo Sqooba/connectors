@@ -56,7 +56,7 @@ class TestBuilder:
         # Init input Yara rules file
         cls._YARA_RULES = "resources/yara.json"
         # Init blacklist scos
-        cls._BLACKLIST = "resources/blacklist.yaml"
+        cls._BLACKLIST = "resources/blacklist.yml"
 
         # Mock helper OpenCtiConnector
         cls.helper = MagicMock()

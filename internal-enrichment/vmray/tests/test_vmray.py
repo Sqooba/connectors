@@ -25,18 +25,18 @@ class TestVmray:
     @classmethod
     def setup_class(cls):
         # Change according to your needs
-        # If set to TRUE, the generated bundle will be written to _BUNDLE
+        # If set to TRUE, the generated bundle will be written to _BUNDLE path
         cls.write_bundle = True
 
         # Init input file PATH
-        cls._FULL_REPORT_IN = "resources/report_full.json"
+        cls._CUSTOM_REPORT_IN = "resources/report_dict_custom.json"
         # Init output file PATH
-        cls._FULL_REPORT_OUT = "resources/report_str_full.json"
+        cls._CUSTOM_REPORT_OUT = "resources/report_str_custom.json"
         cls._BUNDLE = "resources/bundle.json"
 
         # Read the corresponding files
         cls._ANALYSIS = TestVmray.generate_analysis(
-            cls._FULL_REPORT_IN, cls._FULL_REPORT_OUT
+            cls._CUSTOM_REPORT_IN, cls._CUSTOM_REPORT_OUT
         )
 
         with patch(
@@ -46,19 +46,19 @@ class TestVmray:
         ) as mock_es_client, patch(
             "src.vmray.vmray.YaraFetcher"
         ):
-
             # Mocked values
             cls.pyctiClient = mock_opencti_connector_helper
             cls.esClient = mock_es_client
-
             # Initialize the connector
-            cls.connector = VMRayConnector()
+            test_config = Path(__file__).parent.parent.resolve() / "tests/resources/config.yml"
+            test_blacklist = Path(__file__).parent.parent.resolve() / "tests/resources/blacklist.yml"
+            cls.connector = VMRayConnector(test_config, test_blacklist)
 
     @classmethod
     def teardown_class(cls):
         # Remove generated string reports
-        if Path(cls._FULL_REPORT_OUT).unlink(missing_ok=True):
-            os.remove(cls._FULL_REPORT_OUT)
+        if Path(cls._CUSTOM_REPORT_OUT).unlink(missing_ok=True):
+            os.remove(cls._CUSTOM_REPORT_OUT)
 
     def test_process_file(self):
         """

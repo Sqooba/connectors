@@ -29,6 +29,7 @@ python main.py
 
 ## Run the tests
 To run the test, the packages in the file `tests/requirements-text.txt` must be installed on your machine.
+You may need to declare the file `src/config.yaml`, use the file `src/config.yaml.sample` as a modal.
 ```
 $ cd vmray/tests
 $ pytest

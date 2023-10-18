@@ -19,13 +19,10 @@ class VMRayConnector:
     _DEFAULT_AUTHOR = "VMRay"
     _CONNECTOR_RUN_INTERVAL_SEC = 60 * 60
 
-    def __init__(self):
-        # Instantiate the connector helper from config
-        config_file_path = Path(__file__).parent.parent.resolve() / "config.yml"
-
+    def __init__(self, config_path, blacklist_path=None):
         config = (
-            yaml.safe_load(open(config_file_path, encoding="utf-8"))
-            if config_file_path.is_file()
+            yaml.safe_load(open(config_path, encoding="utf-8"))
+            if config_path.is_file()
             else {}
         )
 
@@ -66,13 +63,16 @@ class VMRayConnector:
             config,
         )
 
-        blacklist_file_path = Path(
-            __file__
-        ).parent.parent.resolve() / get_config_variable(
-            "BLACKLIST_FILE",
-            ["vmray", "blacklist_file"],
-            config,
-        )
+        if(blacklist_path is None):
+            blacklist_file_path = Path(
+                __file__
+            ).parent.parent.resolve() / get_config_variable(
+                "BLACKLIST_FILE",
+                ["vmray", "blacklist_file"],
+                config,
+            )
+        else:
+            blacklist_file_path = blacklist_path
 
         self.blacklist_scos = (
             yaml.safe_load(open(blacklist_file_path, encoding="utf-8"))

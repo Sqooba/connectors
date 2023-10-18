@@ -85,11 +85,11 @@
             "domain_0": {
                 "_type": "domain",
                 "classifications": [],
-                "domain": "www.documentcloud.org",
+                "domain": "documentcloud.org",
                 "is_artifact": true,
                 "is_ioc": false,
                 "original_domains": [
-                    "www.documentcloud.org"
+                    "documentcloud.org"
                 ],
                 "protocols": [
                     "HTTPS"
@@ -112,7 +112,7 @@
             "domain_1": {
                 "_type": "domain",
                 "classifications": [],
-                "domain": "www.wsj.com",
+                "domain": "wsj.com",
                 "is_artifact": true,
                 "is_ioc": false,
                 "original_domains": [
@@ -139,11 +139,11 @@
             "domain_2": {
                 "_type": "domain",
                 "classifications": [],
-                "domain": "http://www.twitter.com",
+                "domain": "twitter.com",
                 "is_artifact": true,
                 "is_ioc": false,
                 "original_domains": [
-                    "www.wsj.com"
+                    "wsj.com"
                 ],
                 "protocols": [
                     "HTTPS"

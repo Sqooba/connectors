@@ -19,4 +19,4 @@ vmray:
   elasticsearch_index: 'ChangeMe'
   run_on_s: false
   blacklist_enabled: true
-  blacklist_file: 'blacklist.yaml'
+  blacklist_file: 'blacklist.yml'

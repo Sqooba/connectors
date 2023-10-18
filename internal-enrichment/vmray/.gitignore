@@ -1,8 +1,12 @@
-blacklist.yaml
-config.yml
+# Connector specific files
+src/blacklist.yml
+src/config.yml
+tests/resources/bundle.json
+!tests/resources/config.yml
+!tests/resources/blacklist.yml
+# Python specific files
 __pycache__
 logs
 *.gql
 tmp/
 .pytest_cache/
-tests/resources/bundle.json
