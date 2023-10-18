@@ -71,6 +71,11 @@ class VMRayConnector:
                 ["vmray", "blacklist_file"],
                 config,
             )
+            self.helper.log_info(
+                f"Reading blacklist from file {blacklist_path}"
+            ) if self.blacklist_enabled else self.helper.log_info(
+                "Blacklisting is disabled"
+            )
         else:
             blacklist_file_path = blacklist_path
 
