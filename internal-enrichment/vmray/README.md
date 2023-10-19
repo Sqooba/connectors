@@ -35,3 +35,12 @@ $ cd vmray/tests
 $ pytest
 ```
 
+### Run the connector against a given summary
+If you need to test a given `summaryV2.json` using the connector, you may try the test file `tests/test_vmray.py` 
+
+The procedure is as follows :
+* In the `tests/resources/` folder, upload a custom summary file named `report_dict_custom.json`.
+* Run the test using `pytest`
+* The file `tests/resources/bundle.json` should be created by the connector with the corresping bundle
+
+
