@@ -19,6 +19,7 @@ before_script:
   # Docker config
   - mkdir -p $HOME/.docker
   - echo $DOCKER_AUTH_CONFIG > $HOME/.docker/config.json
+  - echo -e "machine gitlab.king.zoo. login gitlab-ci-token password ${CI_JOB_TOKEN}" > $HOME/.netrc
 
 stages:
   - build
