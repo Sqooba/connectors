@@ -11,6 +11,7 @@ from .utils.constants import HASHES_TYPE, SCOS_FIELD, EntityType, ErrorMessage
 from .utils.es_client import EsClient
 from .utils.utils import deep_get
 from .utils.yara_fetcher import YaraFetcher
+from .utils.utils import read_yaml
 
 
 class VMRayConnector:
@@ -20,11 +21,10 @@ class VMRayConnector:
     _CONNECTOR_RUN_INTERVAL_SEC = 60 * 60
 
     def __init__(self, config_path, blacklist_path=None):
-        config = (
-            yaml.safe_load(open(config_path, encoding="utf-8"))
-            if config_path.is_file()
-            else {}
-        )
+        try :
+            config = read_yaml(config_path)
+        except Exception as ex:
+            raise Exception("Error reading the connector config") from ex
 
         self.helper = OpenCTIConnectorHelper(config)
 
@@ -77,13 +77,13 @@ class VMRayConnector:
                 "Blacklisting is disabled"
             )
         else:
+            # Take the blacklit file path from the constructor's args
             blacklist_file_path = blacklist_path
 
-        self.blacklist_scos = (
-            yaml.safe_load(open(blacklist_file_path, encoding="utf-8"))
-            if blacklist_file_path.is_file()
-            else {}
-        )
+        try :
+            self.blacklist_scos = read_yaml(config_path)
+        except Exception as ex:
+            raise Exception("Error reading the blacklist file") from ex
 
         self.author = Identity(
             name=self._DEFAULT_AUTHOR,

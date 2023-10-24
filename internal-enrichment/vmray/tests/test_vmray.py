@@ -18,7 +18,7 @@ class TestVmray:
     This class is used to test the VMRayConnector.
     The goal of the test in this file is to validate that the given summary was successfully read and converted into a valid bundle.
     The data within the bundle is not validated; the only goal here is to validate that the bundle was built successfully.
-    The file tests/resources/report_full.json can be adapted to your needs.
+    The file tests/resources/report_dict_custom.json can be adapted to your needs.
     The output bundle is written to the file tests/resources/bundle.json.
     """
 
@@ -29,6 +29,8 @@ class TestVmray:
         cls.write_bundle = True
 
         # Init input file PATH
+        cls._CONNECTOR_CONFIG_IN = "tests/resources/config.yml"
+        cls._BLACKLIST_FILE_IN = "tests/resources/blacklist.yml"
         cls._CUSTOM_REPORT_IN = "resources/report_dict_custom.json"
         # Init output file PATH
         cls._CUSTOM_REPORT_OUT = "resources/report_str_custom.json"
@@ -51,10 +53,10 @@ class TestVmray:
             cls.esClient = mock_es_client
             # Initialize the connector
             test_config = (
-                Path(__file__).parent.parent.resolve() / "tests/resources/config.yml"
+                Path(__file__).parent.parent.resolve() / cls._CONNECTOR_CONFIG_IN
             )
             test_blacklist = (
-                Path(__file__).parent.parent.resolve() / "tests/resources/blacklist.yml"
+                Path(__file__).parent.parent.resolve() / cls._BLACKLIST_FILE_IN
             )
             cls.connector = VMRayConnector(test_config, test_blacklist)
 

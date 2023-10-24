@@ -62,8 +62,7 @@ class VMRAYBuilder:
         self.sample: Union[None, Tuple[str, File]] = None
         self.bundle = []
         self.helper = helper
-        self.blacklist_enabled = blacklist[0]
-        self.blacklist_scos = blacklist[1]
+        self.blacklist_enabled, self.blacklist_scos = blacklist
 
         # Make sure the analysis is correctly structured
         if (
