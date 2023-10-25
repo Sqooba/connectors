@@ -24,7 +24,7 @@ class VMRayConnector:
         try :
             config = read_yaml(config_path)
         except Exception as ex:
-            raise Exception("Error reading the connector config") from ex
+            config = {}
 
         self.helper = OpenCTIConnectorHelper(config)
 
@@ -81,7 +81,7 @@ class VMRayConnector:
             blacklist_file_path = blacklist_path
 
         try :
-            self.blacklist_scos = read_yaml(config_path)
+            self.blacklist_scos = read_yaml(blacklist_file_path)
         except Exception as ex:
             raise Exception("Error reading the blacklist file") from ex
 
