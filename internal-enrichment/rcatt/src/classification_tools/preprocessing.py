@@ -83,7 +83,7 @@ def remove_u(input_string):
     return " ".join(words_u)
 
 
-class StemTokenizer():
+class StemTokenizer:
     """
     Transform each word to its stemmed version
     e.g. studies --> studi
@@ -96,7 +96,7 @@ class StemTokenizer():
         return [self.st.stem(t) for t in word_tokenize(doc)]
 
 
-class LemmaTokenizer():
+class LemmaTokenizer:
     """
     Transform each word to its lemmatized version
     e.g. studies --> study

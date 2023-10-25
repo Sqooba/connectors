@@ -1,0 +1,22 @@
+opencti:
+  url: 'test'
+  token: 'test'
+
+connector:
+  id: 'test'
+  type: 'INTERNAL_ENRICHMENT'
+  name: 'VMRay - Enrichment - Dev'
+  scope: 'StixFile'
+  auto: false
+  confidence_level: 80
+  log_level: 'info'
+  expose_metrics: false
+
+vmray:
+  url: 'test'
+  api_key: 'test'
+  elasticsearch_url: 'test'
+  elasticsearch_index: 'test'
+  run_on_s: false
+  blacklist_enabled: true
+  blacklist_file: 'blacklist.yml'
