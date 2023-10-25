@@ -2,7 +2,7 @@
 from operator import itemgetter
 
 import joblib
-from colorama import  Fore, Style
+from colorama import Fore, Style
 
 import classification_tools as clt
 import classification_tools.preprocessing as prp

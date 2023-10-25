@@ -28,9 +28,19 @@ python main.py
 ```
 
 ## Run the tests
-To run the test, the package `pytest` must be installed on your machine.
+To run the test, the packages in the file `tests/requirements-test.txt` must be installed on your machine.
+You may need to declare the file `src/config.yaml`, use the file `src/config.yaml.sample` as a modal.
 ```
 $ cd vmray/tests
 $ pytest
 ```
+
+### Run the connector against a given summary
+If you need to test a given `summaryV2.json` using the connector, you may try the test file `tests/test_vmray.py` 
+
+The procedure is as follows :
+* In the `tests/resources/` folder, upload a custom summary file named `report_dict_custom.json`.
+* Run the test using `pytest`
+* The file `tests/resources/bundle.json` should be created by the connector with the corresping bundle
+
 

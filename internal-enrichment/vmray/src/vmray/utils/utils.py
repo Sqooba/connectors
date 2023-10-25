@@ -2,6 +2,7 @@
 """Utils methods for VMRay Connector."""
 
 import re
+import yaml
 from functools import reduce
 from typing import Any, Union
 from urllib.parse import urlparse
@@ -96,3 +97,14 @@ def get_score(verdict: str) -> int:
         if verdict and isinstance(verdict, str)
         else None
     )
+
+def read_yaml(path: str):
+    try:
+        with open(path, "r", encoding="utf-8") as stream:
+            return yaml.safe_load(stream)
+    except FileNotFoundError as ex:
+        raise Exception(f"File not found: {path}") from ex
+    except yaml.YAMLError as ex:
+        raise Exception(f"Error parsing YAML in file: {path}") from ex
+    except Exception as ex:
+        raise Exception(f"An unexpected error occurred while reading the file: {path}") from ex
