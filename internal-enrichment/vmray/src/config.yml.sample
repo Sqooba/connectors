@@ -18,3 +18,5 @@ vmray:
   elasticsearch_url: 'ChangeMe'
   elasticsearch_index: 'ChangeMe'
   run_on_s: false
+  blacklist_enabled: true
+  blacklist_file: 'blacklist.yml'

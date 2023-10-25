@@ -3,6 +3,7 @@
 
 import datetime
 import json
+import re
 from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
 import plyara
@@ -25,7 +26,6 @@ from stix2 import (
 
 from .models.relationship_ref import RelationshipRef
 from .utils.constants import (
-    BLACKLIST_DOMAIN,
     CUSTOM_FIELDS,
     INVALID_DOMAIN,
     SAMPLE_TYPE,
@@ -52,6 +52,7 @@ class VMRAYBuilder:
         run_on_s: bool,
         analysis: dict,
         helper: OpenCTIConnectorHelper,
+        blacklist: Tuple[bool, str],
     ):
         """Initialize VMRayBuilder."""
         self.author = author
@@ -61,6 +62,7 @@ class VMRAYBuilder:
         self.sample: Union[None, Tuple[str, File]] = None
         self.bundle = []
         self.helper = helper
+        self.blacklist_enabled, self.blacklist_scos = blacklist
 
         # Make sure the analysis is correctly structured
         if (
@@ -167,12 +169,17 @@ class VMRAYBuilder:
         ValueError
             * If the ip address value is invalid
         """
+        # Default values
         score = {CUSTOM_FIELDS["SCORE"]: None}
+        ip_address = ip_addr.get("ip_address")
 
-        if not validators.ipv4(ip_addr["ip_address"]):
-            raise ValueError(
-                ErrorMessage.INVALID_VALUE.format("IP", ip_addr["ip_address"])
-            )
+        # If the ip address is blacklisted, return None
+        if self.blacklist_enabled and self.is_blacklisted("ip", ip_address):
+            self.helper.log_info(InfoMessage.BLACKLISTED_VALUE.format("IP", ip_address))
+            return
+
+        if not validators.ipv4(ip_address):
+            raise ValueError(ErrorMessage.INVALID_VALUE.format("IP", ip_address))
 
         # Try to get the verdict field and score it
         if ip_addr.get("verdict"):
@@ -184,7 +191,7 @@ class VMRAYBuilder:
         sco_obj = IPv4Address(
             type=EntityType.IPV4_ADDR.value,
             spec_version=self._SPEC_VERSION,
-            value=ip_addr.get("ip_address"),
+            value=ip_address,
             object_marking_refs=TLP_AMBER,
             custom_properties={**self.custom_props, **score},
         )
@@ -420,6 +427,13 @@ class VMRAYBuilder:
         domain_formatted = format_domain(domain_name)
         score = {CUSTOM_FIELDS["SCORE"]: None}
 
+        # If the domain name is blacklisted, return None
+        if self.blacklist_enabled and self.is_blacklisted("domain", domain_name):
+            self.helper.log_info(
+                InfoMessage.BLACKLISTED_VALUE.format("DOMAIN-NAME", domain_name)
+            )
+            return
+
         # If the domain name is empty or not valid, raise a ValueError
         if (
             not domain_name
@@ -429,13 +443,6 @@ class VMRAYBuilder:
             raise ValueError(
                 ErrorMessage.INVALID_VALUE.format("DOMAIN-NAME", domain_name)
             )
-
-        # If the domain name is blacklisted, return None
-        if domain_formatted in BLACKLIST_DOMAIN:
-            self.helper.log_info(
-                InfoMessage.BLACKLISTED_VALUE.format("DOMAIN-NAME", domain_name)
-            )
-            return
 
         # Try to get the verdict field and score it
         if domain.get("verdict"):
@@ -759,3 +766,20 @@ class VMRAYBuilder:
         )
         # Return None if no sample where found
         return None
+
+    def is_blacklisted(self, key: str, sco: str) -> bool:
+        """
+        Check if the given string (`sco`) matches any pattern in the blacklist for the specified key (`key`).
+
+        Parameters:
+        - key (str): The key corresponding to the type of data being checked against the blacklist.
+        - sco (str): The string to check against the blacklisted items.
+
+        Returns:
+        bool: True if there is a match in the blacklist, False otherwise.
+
+        Note:
+        If the specified key is not found in the blacklist or the blacklist is empty, the function returns False.
+        """
+        regexes = self.blacklist_scos.get(key, [])
+        return any(re.match(r, sco) for r in regexes)

@@ -11,6 +11,7 @@ from .utils.constants import HASHES_TYPE, SCOS_FIELD, EntityType, ErrorMessage
 from .utils.es_client import EsClient
 from .utils.utils import deep_get
 from .utils.yara_fetcher import YaraFetcher
+from .utils.utils import read_yaml
 
 
 class VMRayConnector:
@@ -19,15 +20,11 @@ class VMRayConnector:
     _DEFAULT_AUTHOR = "VMRay"
     _CONNECTOR_RUN_INTERVAL_SEC = 60 * 60
 
-    def __init__(self):
-        # Instantiate the connector helper from config
-        config_file_path = Path(__file__).parent.parent.resolve() / "config.yml"
-
-        config = (
-            yaml.safe_load(open(config_file_path, encoding="utf-8"))
-            if config_file_path.is_file()
-            else {}
-        )
+    def __init__(self, config_path, blacklist_path=None):
+        try :
+            config = read_yaml(config_path)
+        except Exception as ex:
+            config = {}
 
         self.helper = OpenCTIConnectorHelper(config)
 
@@ -60,6 +57,34 @@ class VMRayConnector:
             config,
         )
 
+        self.blacklist_enabled = get_config_variable(
+            "BLACKLIST_ENABLED",
+            ["vmray", "blacklist_enabled"],
+            config,
+        )
+
+        if blacklist_path is None:
+            blacklist_file_path = Path(
+                __file__
+            ).parent.parent.resolve() / get_config_variable(
+                "BLACKLIST_FILE",
+                ["vmray", "blacklist_file"],
+                config,
+            )
+            self.helper.log_info(
+                f"Reading blacklist from file {blacklist_file_path}"
+            ) if self.blacklist_enabled else self.helper.log_info(
+                "Blacklisting is disabled"
+            )
+        else:
+            # Take the blacklist file path from the constructor's args
+            blacklist_file_path = blacklist_path
+
+        try :
+            self.blacklist_scos = read_yaml(blacklist_file_path)
+        except Exception as ex:
+            raise Exception("Error reading the blacklist file") from ex
+
         self.author = Identity(
             name=self._DEFAULT_AUTHOR,
             identity_class="system",
@@ -69,6 +94,11 @@ class VMRayConnector:
             " and static analysis with groundbreaking sandbox technology.",
             confidence=self.helper.connect_confidence_level,
         )
+
+        # If the blacklist feature is enabled, check the backlist file's integrity
+        if self.blacklist_enabled and not self.blacklist_scos:
+            raise ValueError("Blacklist file is empty")
+
         # Open ES & Yara connections
         self.client = EsClient(endpoint=elasticsearch_url, index=elasticsearch_index)
         self.yara_fetcher = YaraFetcher(self.helper, self.vmray_url, self.vmray_api_key)
@@ -113,7 +143,11 @@ class VMRayConnector:
                     try:
                         # Initialize builder object
                         builder = VMRAYBuilder(
-                            self.author, self.run_on_s, analysis, self.helper
+                            self.author,
+                            self.run_on_s,
+                            analysis,
+                            self.helper,
+                            (self.blacklist_enabled, self.blacklist_scos),
                         )
                     except (KeyError, TypeError) as ex:
                         self.helper.metric.inc("client_error_count")
