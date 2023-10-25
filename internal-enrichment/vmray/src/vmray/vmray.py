@@ -24,7 +24,8 @@ class VMRayConnector:
         try :
             config = read_yaml(config_path)
         except Exception as ex:
-            raise Exception("Error reading the connector config") from ex
+            # raise Exception("Error reading the connector config") from ex
+            pass
 
         self.helper = OpenCTIConnectorHelper(config)
 
