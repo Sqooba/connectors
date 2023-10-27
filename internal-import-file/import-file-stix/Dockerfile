@@ -6,7 +6,6 @@ RUN  echo "http://mirror.queen.zoo./artifactory/dl-cdn-alpinelinux-org/v$(cat /e
 
 # Copy confs
 COPY pip.conf /root/.config/pip/pip.conf
-COPY netrc /root/.netrc
 
 # Copy the connector
 COPY internal-import-file/import-file-stix/src /opt/opencti-connector-import-file-stix

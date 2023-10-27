@@ -6,7 +6,6 @@ RUN  echo "http://mirror.queen.zoo./artifactory/dl-cdn-alpinelinux-org/v$(cat /e
 
 # Copy confs
 COPY pip.conf /root/.config/pip/pip.conf
-COPY netrc /root/.netrc
 
 # Copy the worker
 COPY internal-export-file/export-report-pdf/src /opt/opencti-connector-export-report-pdf
