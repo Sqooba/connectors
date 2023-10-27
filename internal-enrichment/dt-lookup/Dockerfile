@@ -6,7 +6,6 @@ RUN  echo "http://mirror.queen.zoo./artifactory/dl-cdn-alpinelinux-org/v$(cat /e
 
 # Copy confs
 COPY pip.conf /root/.config/pip/pip.conf
-COPY netrc /root/.netrc
 
 # Copy the worker
 COPY internal-enrichment/dt-lookup/src /opt/opencti-connector-dt-lookup
