@@ -1,4 +1,4 @@
-git+https://github.com/Sqooba/client-python@5.7.6-sqb-3.1.0#egg=pycti
+pycti==5.10.3
 colorama==0.4.3
 Cython==0.29.26
 joblib==0.14.1
