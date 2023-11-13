@@ -1,7 +1,7 @@
 version: '3'
 services:
   connector-vmray:
-    image: opencti/connector-vmray:5.10.3-sqb-4.4.0
+    image: opencti/connector-vmray:5.11.13-sqb-5.2.1
     environment:
       - OPENCTI_URL=http://localhost
       - OPENCTI_TOKEN=ChangeMe

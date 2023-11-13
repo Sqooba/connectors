@@ -21,7 +21,7 @@ class VMRayConnector:
     _CONNECTOR_RUN_INTERVAL_SEC = 60 * 60
 
     def __init__(self, config_path, blacklist_path=None):
-        try :
+        try:
             config = read_yaml(config_path)
         except Exception as ex:
             config = {}
@@ -62,28 +62,31 @@ class VMRayConnector:
             ["vmray", "blacklist_enabled"],
             config,
         )
+        self.blacklist_scos = {}
 
-        if blacklist_path is None:
-            blacklist_file_path = Path(
-                __file__
-            ).parent.parent.resolve() / get_config_variable(
-                "BLACKLIST_FILE",
-                ["vmray", "blacklist_file"],
-                config,
-            )
-            self.helper.log_info(
-                f"Reading blacklist from file {blacklist_file_path}"
-            ) if self.blacklist_enabled else self.helper.log_info(
-                "Blacklisting is disabled"
-            )
-        else:
-            # Take the blacklist file path from the constructor's args
-            blacklist_file_path = blacklist_path
+        if self.blacklist_enabled:
+            self.helper.log_info("Blacklist feature is enabled")
+            if blacklist_path is None:
+                # The blacklist file path is not in the constructor's args
+                # Trying to read it from an env variable
+                blacklist_file_path = Path(
+                    __file__
+                ).parent.parent.resolve() / get_config_variable(
+                    "BLACKLIST_FILE",
+                    ["vmray", "blacklist_file"],
+                    config,
+                )
+            else:
+                # The blacklist is in the constructor's args
+                blacklist_file_path = blacklist_path
 
-        try :
-            self.blacklist_scos = read_yaml(blacklist_file_path)
-        except Exception as ex:
-            raise Exception("Error reading the blacklist file") from ex
+            try:
+                self.helper.log_info(
+                    f"Reading blacklist from file {blacklist_file_path}"
+                )
+                self.blacklist_scos = read_yaml(blacklist_file_path)
+            except Exception as ex:
+                raise Exception(f"Error reading the blacklist file from {blacklist_file_path}") from ex
 
         self.author = Identity(
             name=self._DEFAULT_AUTHOR,
@@ -94,10 +97,6 @@ class VMRayConnector:
             " and static analysis with groundbreaking sandbox technology.",
             confidence=self.helper.connect_confidence_level,
         )
-
-        # If the blacklist feature is enabled, check the backlist file's integrity
-        if self.blacklist_enabled and not self.blacklist_scos:
-            raise ValueError("Blacklist file is empty")
 
         # Open ES & Yara connections
         self.client = EsClient(endpoint=elasticsearch_url, index=elasticsearch_index)
