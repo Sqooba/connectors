@@ -31,7 +31,7 @@ class TestRelationshipRef:
         """
         Test RelationshipRef dataclass's default value, the result should be equal to the compared values
         """
-        default_description = "VMRay: sample to IOC"
+        default_description = "VMRay: sample to IoC"
         test_description = "test_description"
         test_value_00 = RelationshipRef(
             "source_01", "target_01", RelationshipType.RESOLVES.value

@@ -147,6 +147,7 @@ class VMRayConnector:
                             analysis,
                             self.helper,
                             (self.blacklist_enabled, self.blacklist_scos),
+                            self.vmray_url,
                         )
                     except (KeyError, TypeError) as ex:
                         self.helper.metric.inc("client_error_count")
@@ -169,16 +170,18 @@ class VMRayConnector:
                     ]:
                         for key in builder.summary.get(sco["key"]):
                             try:
-                                # Control if the current item is not the sample
+                                # Check if the current item is the sample
                                 if builder.sample and builder.sample[0] == key:
-                                    self.helper.log_info(
-                                        f"You're processing the sample ({key}), skipping"
+                                    # update the sample file (already ingested in OpenCTI by VMRay connector scala)
+                                    builder.update_sample_file(
+                                        builder.summary[sco["key"]][key],
+                                        stix_file["id"]
                                     )
-                                    continue
-                                # Create STIX SCO
-                                getattr(builder, sco["transform"])(
-                                    builder.summary[sco["key"]][key]
-                                )
+                                else:
+                                    # Create STIX SCO
+                                    getattr(builder, sco["transform"])(
+                                        builder.summary[sco["key"]][key]
+                                    )
                             except Exception as ex:
                                 self.helper.metric.inc("client_error_count")
                                 self.helper.log_error(

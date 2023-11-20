@@ -22,6 +22,7 @@ from stix2 import (
     IPv4Address,
     Relationship,
     Report,
+    ExternalReference,
 )
 
 from .models.relationship_ref import RelationshipRef
@@ -53,6 +54,7 @@ class VMRAYBuilder:
         analysis: dict,
         helper: OpenCTIConnectorHelper,
         blacklist: Tuple[bool, str],
+        vmray_url: str,
     ):
         """Initialize VMRayBuilder."""
         self.author = author
@@ -63,6 +65,7 @@ class VMRAYBuilder:
         self.bundle = []
         self.helper = helper
         self.blacklist_enabled, self.blacklist_scos = blacklist
+        self.vmray_url = vmray_url
 
         # Make sure the analysis is correctly structured
         if (
@@ -149,12 +152,71 @@ class VMRAYBuilder:
         )
 
         if self.sample and sco_obj.id != self.sample[1].id:
-            self.relationships.add(RelationshipRef(self.sample[1].id, sco_obj.id))
+            rel_description = "VMRay: sample to related file"
+            # Add VMRay file categories to relationship description
+            vmray_file_categories = set()
+            file_categories = file.get("categories", [])
+            for c in file_categories:
+                if isinstance(c, str):
+                    vmray_file_categories.add(c)
+                elif isinstance(c, dict):
+                    for c in file_categories:
+                        vmray_file_categories.update(c.keys())
+                else:
+                    self.helper.log_warning("Unsupported format for file categories")
+
+            if len(vmray_file_categories) > 0:
+                rel_description = f"VMRay: sample to related file | Categories: {','.join(list(vmray_file_categories))}"
+
+            self.relationships.add(RelationshipRef(self.sample[1].id, sco_obj.id, description=rel_description))
         if self.get_from_bundle(EntityType.FILE.value, sco_obj.id, "id") is None:
             self.bundle.append(sco_obj)
             self.object_refs.append(sco_obj.id)
 
         return sco_obj.id
+
+    def update_sample_file(
+        self, file: Dict[str, Any], sample_id: str
+    ) -> str:
+        self.helper.log_info(f"update_sample_file (id: {sample_id})")
+        vmray_labels = set()
+        # add label for verdict
+        if "verdict" in file:
+            vmray_labels.add(f"vmray: {file['verdict']}")
+        # add label for yara rules
+        analysis_yara_matches = deep_get(self.summary, "yara", "matches")
+        file_yara_matches = file.get("ref_yara_matches", [])
+        self.helper.log_info(f"Yara matches: {len(file_yara_matches)}")
+        for it in file_yara_matches:
+            for p in it.get("path", []):
+                if p.startswith("yara_match_"):
+                    yara_rule_name = analysis_yara_matches[p].get("rule_name")
+                    if yara_rule_name:
+                        vmray_labels.add(f"vmray:yara: {yara_rule_name}")
+                    else:
+                        self.helper.log_warning("yara_rule_name is None")
+        # add label for AV matches
+        analysis_av_matches = deep_get(
+            self.summary, "anti_virus", "builtin_av_bdam", "matches"
+        )
+        file_av_matches = file.get("ref_av_matches", [])
+        for it in file_av_matches:
+            for p in it.get("path", []):
+                if p.startswith("av_match_"):
+                    if "threat" in analysis_av_matches[p]:
+                        av_threat_name = analysis_av_matches[p].get("threat").get("name")
+                        if av_threat_name:
+                            vmray_labels.add(f"vmray:AV: {av_threat_name}")
+                        else:
+                            self.helper.log_warning("av_threat_name not found")
+                    else:
+                        self.helper.log_warning("av_threat_name not found")
+        label_color = "#54483b"
+        for vmray_label in vmray_labels:
+            label = self.helper.api.label.create(value=vmray_label, color=label_color)
+            self.helper.api.stix_cyber_observable.add_label(
+                id=sample_id, label_id=label["id"]
+            )
 
     def create_ip(self, ip_addr: Dict[str, Any]) -> None:
         """
@@ -594,10 +656,15 @@ class VMRAYBuilder:
         description = set()
         labels = set()
 
+        # add verdict
+        if "verdict" in metadata:
+            verdict_label = f"vmray: {metadata['verdict']}"
+            labels.add(verdict_label)
+
         # Generate Labels and description
-        if self.summary.get("classifications"):
+        if "classifications" in self.summary:
             self.helper.log_debug(
-                f"[REPORT] - Label {self.summary.get('classifications')} found in classifications"
+                f"[REPORT] - Label {self.summary['classifications']} found in classifications"
             )
             labels.update(self.summary["classifications"])
 
@@ -632,6 +699,12 @@ class VMRAYBuilder:
         if stix_id:
             self.object_refs.append(stix_id)
 
+        external_reference = ExternalReference(
+            source_name="VMRay analysis",
+            url=f"{self.vmray_url}/analyses/{metadata.get('analysis_id', 'unknown')}",
+            description="Link to VMRay analysis",
+        )
+
         # Generate the STIX object
         obj_report = Report(
             name=name,
@@ -645,6 +718,7 @@ class VMRAYBuilder:
             confidence=self.helper.connect_confidence_level,
             object_marking_refs=TLP_AMBER,
             custom_properties=self.custom_props,
+            external_references=[external_reference],
         )
         self.bundle.append(obj_report)
 

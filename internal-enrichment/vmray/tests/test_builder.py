@@ -57,6 +57,7 @@ class TestBuilder:
         cls._YARA_RULES = "resources/yara.json"
         # Init blacklist scos
         cls._BLACKLIST = "resources/blacklist.yml"
+        cls._VMRAY_SERVER_URL = "https://vmray.test"
 
         # Mock helper OpenCtiConnector
         cls.helper = MagicMock()
@@ -119,6 +120,7 @@ class TestBuilder:
             request.getfixturevalue(analysis),
             self.helper,
             (False, self.blacklist_scos),
+            self._VMRAY_SERVER_URL
         )
         # Run tests
         assert len(builder.bundle) == expected[1]
@@ -145,7 +147,7 @@ class TestBuilder:
         # Initialize a builder with inconsistent analysis should throw an error
         with pytest.raises(expected):
             VMRAYBuilder(
-                self.author, False, analysis, self.helper, (False, self.blacklist_scos)
+                self.author, False, analysis, self.helper, (False, self.blacklist_scos), self._VMRAY_SERVER_URL
             )
 
     def test_create_file(self, file_analysis):
@@ -153,7 +155,7 @@ class TestBuilder:
         Test create_file function, the result should be equal to the expected variable's field
         """
         builder = VMRAYBuilder(
-            self.author, False, file_analysis, self.helper, (False, self.blacklist_scos)
+            self.author, False, file_analysis, self.helper, (False, self.blacklist_scos), self._VMRAY_SERVER_URL
         )
         # Expected object
         expected = File(
@@ -209,7 +211,7 @@ class TestBuilder:
         Test create_domain function, the result should be equal to the stix_expected variable's field
         """
         builder = VMRAYBuilder(
-            self.author, False, file_analysis, self.helper, (False, self.blacklist_scos)
+            self.author, False, file_analysis, self.helper, (False, self.blacklist_scos), self._VMRAY_SERVER_URL
         )
         # Expected object
         expected = DomainName(
@@ -256,7 +258,7 @@ class TestBuilder:
         Test create_url function, the result should be equal to the stix_expected variable's field
         """
         builder = VMRAYBuilder(
-            self.author, False, file_analysis, self.helper, (False, self.blacklist_scos)
+            self.author, False, file_analysis, self.helper, (False, self.blacklist_scos), self._VMRAY_SERVER_URL
         )
         # Expected object
         expected = URL(
@@ -287,7 +289,7 @@ class TestBuilder:
         Test create_email_address function, the result should be equal to the stix_expected variable's field
         """
         builder = VMRAYBuilder(
-            self.author, False, file_analysis, self.helper, (False, self.blacklist_scos)
+            self.author, False, file_analysis, self.helper, (False, self.blacklist_scos), self._VMRAY_SERVER_URL
         )
         # Expected object
         expected = EmailAddress(
@@ -329,7 +331,7 @@ class TestBuilder:
         Test create_email_message function, the result should be equal to the stix_expected variable's field
         """
         builder = VMRAYBuilder(
-            self.author, False, file_analysis, self.helper, (False, self.blacklist_scos)
+            self.author, False, file_analysis, self.helper, (False, self.blacklist_scos), self._VMRAY_SERVER_URL
         )
         # Expected object
         expected = EmailMessage(
@@ -378,7 +380,7 @@ class TestBuilder:
         Test create_ip function, the result should be equal to the stix_expected variable's field
         """
         builder = VMRAYBuilder(
-            self.author, False, file_analysis, self.helper, (False, self.blacklist_scos)
+            self.author, False, file_analysis, self.helper, (False, self.blacklist_scos), self._VMRAY_SERVER_URL
         )
         # Expected object
         expected = IPv4Address(
@@ -437,7 +439,7 @@ class TestBuilder:
         Test create_text function, the result should be equal to the stix_expected variable's field
         """
         builder = VMRAYBuilder(
-            self.author, False, file_analysis, self.helper, (False, self.blacklist_scos)
+            self.author, False, file_analysis, self.helper, (False, self.blacklist_scos), self._VMRAY_SERVER_URL
         )
         # Expected object
         expected = CustomObservableText(
@@ -466,7 +468,7 @@ class TestBuilder:
         Test create_yara_indicator, the result should be equal to the stix_expected variable's field
         """
         builder = VMRAYBuilder(
-            self.author, False, file_analysis, self.helper, (False, self.blacklist_scos)
+            self.author, False, file_analysis, self.helper, (False, self.blacklist_scos), self._VMRAY_SERVER_URL
         )
         # Expected object
         expected = Indicator(
@@ -523,7 +525,7 @@ class TestBuilder:
         Test create_relationship function, the result should be equal to the stix_expected variable's field
         """
         builder = VMRAYBuilder(
-            self.author, False, file_analysis, self.helper, (False, self.blacklist_scos)
+            self.author, False, file_analysis, self.helper, (False, self.blacklist_scos), self._VMRAY_SERVER_URL
         )
         # Fill up the bundle
         builder.create_file(builder.summary["files"]["file_1"])
@@ -535,12 +537,19 @@ class TestBuilder:
         # Test each relation
         relationships = [x for x in builder.bundle if x.type == "relationship"]
         for relation in relationships:
+            print(f"src: {relation.source_ref}, dest: {relation.target_ref}, desc: {relation.description}")
             assert isinstance(
                 relation, Relationship
             ), "Return type should be a relationship"
-            assert (
-                "VMRay: sample to IOC" == relation.description
-            ), "Description property should match"
+            if relation.target_ref.startswith("file--"):
+                assert (
+                    f"VMRay: sample to related file | Categories: Misc" == relation.description
+                ), f"Description property should match: {relation.description}|"
+            else:
+                assert (
+                        f"VMRay: sample to IoC" == relation.description
+                ), f"Description property should match: {relation.description}|"
+            # assert f"VMRay: sample to IoC / Categories: Misc" == relation.description
             assert (
                 builder.sample[1].id == relation.source_ref
             ), "source_ref property should match"
@@ -551,7 +560,7 @@ class TestBuilder:
         assert len(relationships) == 3, "Relationships number should match 3"
         # Create a new builder with an email analysis
         fake_builder = VMRAYBuilder(
-            self.author, False, mail_analysis, self.helper, (False, self.blacklist_scos)
+            self.author, False, mail_analysis, self.helper, (False, self.blacklist_scos), self._VMRAY_SERVER_URL
         )
         # Fill up the bundle
         fake_builder.create_domain(fake_builder.summary["domains"]["domain_0"])
@@ -596,7 +605,7 @@ class TestBuilder:
         Test create_report function, the result should be equal to the stix_expected variable's field
         """
         builder = VMRAYBuilder(
-            self.author, False, file_analysis, self.helper, (False, self.blacklist_scos)
+            self.author, False, file_analysis, self.helper, (False, self.blacklist_scos), self._VMRAY_SERVER_URL
         )
         # Fill up the bundle
         for x in range(0, 2):
@@ -617,6 +626,7 @@ class TestBuilder:
                 "TestValue02",
                 "TestValue03",
                 "TestValue04",
+                "vmray: clean",
             },
             created="2022-04-29T15:49:39.974524Z",
             modified="2022-04-29T15:49:39.974524Z",
@@ -658,6 +668,7 @@ class TestBuilder:
         for key in builder.summary["vti"]["matches"]:
             del builder.summary["vti"]["matches"][key]["operation_desc"]
             del builder.summary["vti"]["matches"][key]["category_desc"]
+        del builder.summary["analysis_metadata"]["verdict"]
         # Create a report
         builder.create_report()
         # Retrieve the result in the bundle (last index)
@@ -671,7 +682,7 @@ class TestBuilder:
         ), "Labels should not exist in labels property"
         # Test that even without a sample ID the builder can work and generate a consistent report
         builder_no_smpl = VMRAYBuilder(
-            self.author, False, none_analysis, self.helper, (False, self.blacklist_scos)
+            self.author, False, none_analysis, self.helper, (False, self.blacklist_scos), self._VMRAY_SERVER_URL
         )
         # Fill up the bundle
         builder_no_smpl.create_file(builder_no_smpl.summary["files"]["file_0"])
@@ -694,7 +705,7 @@ class TestBuilder:
         Test create_bundle function, the result should be equal to the stix_expected variable's field
         """
         builder = VMRAYBuilder(
-            self.author, False, file_analysis, self.helper, (False, self.blacklist_scos)
+            self.author, False, file_analysis, self.helper, (False, self.blacklist_scos), self._VMRAY_SERVER_URL
         )
         # Fill up the bundle
         builder.create_file(builder.summary["files"]["file_1"])
@@ -722,7 +733,8 @@ class TestBuilder:
             "report": 0,
         }
         for stix in bundle.objects:
-            stix_expected[stix["type"]] += 1
+            if stix["type"]:
+                stix_expected[stix["type"]] += 1
 
         assert stix_expected == {
             "identity": 1,
@@ -739,7 +751,7 @@ class TestBuilder:
         Test get_analysis_date, the result should be equal to the stix_expected variable's field
         """
         builder = VMRAYBuilder(
-            self.author, False, file_analysis, self.helper, (False, self.blacklist_scos)
+            self.author, False, file_analysis, self.helper, (False, self.blacklist_scos), self._VMRAY_SERVER_URL
         )
         expected = "2022-04-27T11:58:31Z"
         result = builder.get_analysis_date()
@@ -750,7 +762,7 @@ class TestBuilder:
         Test get_from_bundle function, the result should be equal to the stix_expected entities
         """
         builder = VMRAYBuilder(
-            self.author, False, file_analysis, self.helper, (False, self.blacklist_scos)
+            self.author, False, file_analysis, self.helper, (False, self.blacklist_scos), self._VMRAY_SERVER_URL
         )
         # Fill up the bundle
         builder.create_file(builder.summary["files"]["file_0"])
@@ -782,7 +794,7 @@ class TestBuilder:
         duplicate in the relationships
         """
         builder = VMRAYBuilder(
-            self.author, False, mail_analysis, self.helper, (False, self.blacklist_scos)
+            self.author, False, mail_analysis, self.helper, (False, self.blacklist_scos), self._VMRAY_SERVER_URL
         )
         # At this point, the bundle should contains some entities
         assert 6 == len(builder.bundle)
@@ -820,7 +832,7 @@ class TestBuilder:
         Test is_blacklisted function, the result should be equal to the sco_expected values
         """
         builder = VMRAYBuilder(
-            self.author, False, file_analysis, self.helper, (True, self.blacklist_scos)
+            self.author, False, file_analysis, self.helper, (True, self.blacklist_scos), self._VMRAY_SERVER_URL
         )
 
         sco_result = []

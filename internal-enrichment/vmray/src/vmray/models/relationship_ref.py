@@ -27,7 +27,7 @@ class RelationshipRef:
     source: str
     target: str
     relationship_type: RelationshipType = RelationshipType.RELATED.value
-    description: str = "VMRay: sample to IOC"
+    description: str = "VMRay: sample to IoC"
 
     def __eq__(self, other):
         return (self.source, self.target) == (other.source, other.target)
