@@ -48,8 +48,9 @@ stages:
         # internal-import
         #- internal-enrichment/domaintools
         - internal-enrichment/dt-lookup
-        #- internal-enrichment/rcatt
-        #- internal-enrichment/virustotal
+        - internal-enrichment/incident-enricher
+          # - internal-enrichment/rcatt
+        - internal-enrichment/virustotal
         - internal-enrichment/vmray
         # internal-export-file
         #- internal-export-file/export-report-pdf
