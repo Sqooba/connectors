@@ -1,0 +1,19 @@
+version: "3"
+services:
+  connector-incident-enricher:
+    image: opencti/connector-incident-enricher:5.11.14
+    environment:
+      - OPENCTI_URL=http://localhost
+      - OPENCTI_TOKEN=ChangeMe
+      - CONNECTOR_ID=ChangeMe
+      - CONNECTOR_TYPE=INTERNAL_ENRICHMENT
+      - CONNECTOR_NAME=IncidentEnricher
+      - CONNECTOR_SCOPE=Incident
+      - CONNECTOR_AUTO=true # Enable/disable auto-enrichment of observables
+      - CONNECTOR_CONFIDENCE_LEVEL=50 # From 0 (Unknown) to 100 (Fully trusted)
+      - CONNECTOR_LOG_LEVEL=error
+      - CONNECTOR_EXPOSE_METRICS=false
+    deploy:
+      mode: replicated
+      replicas: 1
+    restart: always
